@@ -76,7 +76,7 @@ int main(int argc, char **argv)
 
     while (ros::ok())
     {
-        joy_ctrl_cmd_msg.axes = {(float)cmd_yaw, (float)cmd_thrust, 0.0, (float)cmd_roll*0, (float)cmd_pitch*0, 0.0, 0.0, 0.0};    // 3:roll, 4:pitch
+        joy_ctrl_cmd_msg.axes = {(float)cmd_yaw, (float)cmd_thrust, 0.0, (float)cmd_roll, (float)cmd_pitch, 0.0, 0.0, 0.0};    // 3:roll, 4:pitch
         joy_ctrl_cmd_msg.buttons = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
         joy_ctrl_cmd_pub.publish(joy_ctrl_cmd_msg);

@@ -18,6 +18,8 @@
 
     <node name="joy_controller" pkg="drone_controller" type="joy_controller" output="screen" />
 
+    <node name="kf" pkg="kf" type="kf.py" />
+
     <!-- <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot"
     args="/pid_roll/control_effort 
           /pid_pitch/control_effort 
