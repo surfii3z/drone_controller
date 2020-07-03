@@ -1,0 +1,39 @@
+{
+    "configurations": [
+        {
+            "browse": {
+                "databaseFilename": "",
+                "limitSymbolsToIncludedHeaders": true
+            },
+            "includePath": [
+                "/home/jedsadakorn/dobot_ws/devel/include/**",
+                "/opt/ros/melodic/include/**",
+                "/home/jedsadakorn/dobot_ws/src/rpg_quadrotor_control/control/autopilot/include/**",
+                "/home/jedsadakorn/dobot_ws/src/drone_controller/include/**",
+                "/home/jedsadakorn/dobot_ws/src/rpg_quadrotor_control/utils/manual_flight_assistant/include/**",
+                "/home/jedsadakorn/dobot_ws/src/mav_comm/mav_msgs/include/**",
+                "/home/jedsadakorn/dobot_ws/src/mav_comm/mav_planning_msgs/include/**",
+                "/home/jedsadakorn/dobot_ws/src/rpg_quadrotor_control/trajectory_planning/polynomial_trajectories/include/**",
+                "/home/jedsadakorn/dobot_ws/src/rpg_quadrotor_control/control/position_controller/include/**",
+                "/home/jedsadakorn/dobot_ws/src/rpg_quadrotor_common/quadrotor_common/include/**",
+                "/home/jedsadakorn/dobot_ws/src/rotors_simulator/rotors_control/include/**",
+                "/home/jedsadakorn/dobot_ws/src/rotors_simulator/rotors_gazebo_plugins/include/**",
+                "/home/jedsadakorn/dobot_ws/src/rotors_simulator/rotors_hil_interface/include/**",
+                "/home/jedsadakorn/dobot_ws/src/rotors_simulator/rotors_joy_interface/include/**",
+                "/home/jedsadakorn/dobot_ws/src/rpg_quadrotor_control/test/rpg_quadrotor_integration_test/include/**",
+                "/home/jedsadakorn/dobot_ws/src/rpg_quadrotor_control/simulation/rpg_rotors_interface/include/**",
+                "/home/jedsadakorn/dobot_ws/src/rpg_single_board_io/include/**",
+                "/home/jedsadakorn/dobot_ws/src/rpg_quadrotor_control/bridges/sbus_bridge/include/**",
+                "/home/jedsadakorn/dobot_ws/src/rpg_quadrotor_common/state_predictor/include/**",
+                "/home/jedsadakorn/dobot_ws/src/rpg_quadrotor_control/trajectory_planning/trajectory_generation_helper/include/**",
+                "/usr/include/**"
+            ],
+            "name": "ROS",
+            "intelliSenseMode": "gcc-x64",
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++14"
+        }
+    ],
+    "version": 4
+}

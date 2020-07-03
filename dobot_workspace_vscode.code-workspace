@@ -1,0 +1,26 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../pid"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"array": "cpp",
+			"string": "cpp",
+			"string_view": "cpp",
+			"cmath": "cpp",
+			"complex": "cpp"
+		},
+		"python.autoComplete.extraPaths": [
+			"/home/jedsadakorn/dobot_ws/devel/lib/python2.7/dist-packages",
+			"/opt/ros/melodic/lib/python2.7/dist-packages",
+			"/home/jedsadakorn/venv3/lib/python3.6/site-packages/tensorflow/models/research",
+			"/home/jedsadakorn/venv3/lib/python3.6/site-packages/tensorflow/models/research",
+			"/home/jedsadakorn/catkin_ws/slim"
+		]
+	}
+}

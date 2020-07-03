@@ -1,0 +1,6 @@
+float64 x_ref_w
+float64 y_ref_w
+float64 alt_ref_w
+float64 yaw_ref_w
+---
+bool  update_status

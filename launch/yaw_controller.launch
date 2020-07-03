@@ -1,0 +1,16 @@
+<launch>
+    <node name="controller" pkg="pid" type="controller" ns="pid_yaw" output="screen" >
+      <param name="Kp" value="-6.0" />
+      <param name="Ki" value="-0.4" />
+      <param name="Kd" value="-0.3" />
+      <param name="upper_limit" value="1" />
+      <param name="lower_limit" value="-1" />
+      <param name="windup_limit" value="0.4" />
+      <param name="max_loop_frequency" value="100.0" />
+      <param name="min_loop_frequency" value="100.0" />
+      <param name="angle_error" value="true" />
+      <!-- <remap from="state" to="/pid_yaw/setpoint" /> -->
+      <remap from="setpoint" to="/pid_zero_setpoint" />
+     </node>
+
+</launch>
