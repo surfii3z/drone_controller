@@ -11,6 +11,9 @@
         "string": "cpp",
         "string_view": "cpp",
         "cmath": "cpp",
-        "complex": "cpp"
+        "complex": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "*.cuh": "cpp"
     }
 }
