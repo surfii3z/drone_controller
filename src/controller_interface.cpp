@@ -254,11 +254,11 @@ int main(int argc, char **argv)
         err_x_ref_w = x_ref_w - x_cur_w;
         err_y_ref_w = y_ref_w - y_cur_w;
 
-        if (abs(err_x_ref_w) < 0.08)
-            err_x_ref_w = 0;
+        // if (abs(err_x_ref_w) < 0.08)
+        //     err_x_ref_w = 0;
 
-        if (abs(err_y_ref_w) < 0.08)
-            err_y_ref_w = 0;
+        // if (abs(err_y_ref_w) < 0.08)
+        //     err_y_ref_w = 0;
         
 
         err_x_b_msg.data = err_x_ref_w * cos(yaw_cur_w) + err_y_ref_w * sin(yaw_cur_w); // check sign
