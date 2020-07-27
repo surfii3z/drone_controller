@@ -4,6 +4,8 @@
 #include <std_msgs/Float64.h>
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/Twist.h>
+
 #include <tf2_msgs/TFMessage.h>
 #include <tf/transform_datatypes.h>
 #include <nav_msgs/Odometry.h>
@@ -27,13 +29,11 @@ namespace controller_interface
     static double y_cur_w = 0.0;  
     static double alt_cur_w = 0.0;
 
-    static double vx_cur_w = 0.0;
-    static double vy_cur_w = 0.0;  
-    static double vz_cur_w = 0.0;
-
-    static double vx_cur_b = 0.0;
-    static double vy_cur_b = 0.0;  
-    static double vz_cur_b = 0.0;
+    // control effort
+    static double ux_cur_w = 0.0;
+    static double uy_cur_w = 0.0;  
+    static double uz_cur_w = 0.0;
+    static double uyaw_cur_w = 0.0;
 
     static double qx_cur_w = 0.0;
     static double qy_cur_w = 0.0;
@@ -138,36 +138,27 @@ void stateCallback(const geometry_msgs::PoseStamped& current_pose_read)
     qy_cur_w = current_pose_read.pose.orientation.y;
     qz_cur_w = current_pose_read.pose.orientation.z;
     qw_cur_w = current_pose_read.pose.orientation.w;
-
 }
 
-void tfCallback(const tf2_msgs::TFMessage& current_tf_read)
+void uxCallback(const std_msgs::Float64& current_ux_w)
 {
-    x_cur_w = current_tf_read.transforms[0].transform.translation.x;
-    y_cur_w = current_tf_read.transforms[0].transform.translation.y;
-    alt_cur_w = current_tf_read.transforms[0].transform.translation.z;
-    qx_cur_w = current_tf_read.transforms[0].transform.rotation.x;
-    qy_cur_w = current_tf_read.transforms[0].transform.rotation.y;
-    qz_cur_w = current_tf_read.transforms[0].transform.rotation.z;
-    qw_cur_w = current_tf_read.transforms[0].transform.rotation.w;
+    ux_cur_w = current_ux_w.data;
 }
 
-void droneStateCallback(const nav_msgs::Odometry& current_odometry)
+void uyCallback(const std_msgs::Float64& current_uy_w)
 {
-
-    // x_cur_w = current_odometry.pose.pose.position.x;
-    // y_cur_w = current_odometry.pose.pose.position.y;
-    // alt_cur_w = current_odometry.pose.pose.position.z;
-    // qx_cur_w = current_odometry.pose.pose.orientation.x;
-    // qy_cur_w = current_odometry.pose.pose.orientation.y;
-    // qz_cur_w = current_odometry.pose.pose.orientation.z;
-    // qw_cur_w = current_odometry.pose.pose.orientation.w;
-    vx_cur_w = current_odometry.twist.twist.linear.x;
-    vy_cur_w = - current_odometry.twist.twist.linear.y;
-    vz_cur_w = current_odometry.twist.twist.linear.z;
-    // ROS_INFO("%lf %lf %lf", vx_cur_w, vy_cur_w, vz_cur_w);
+    uy_cur_w = current_uy_w.data;
 }
 
+void uzCallback(const std_msgs::Float64& current_uz_w)
+{
+    uz_cur_w = current_uz_w.data;
+}
+
+void uyawCallback(const std_msgs::Float64& current_uyaw_w)
+{
+    uyaw_cur_w = current_uyaw_w.data;
+}
 
 int main(int argc, char **argv)
 {
@@ -198,28 +189,20 @@ int main(int argc, char **argv)
     std_msgs::Float64 err_alt_b_msg;
     ros::Publisher err_alt_b_pub = ctrl_interface_node.advertise<std_msgs::Float64>("/err_alt_b", 1);
 
-    // std_msgs::Float64 err_roll_b_msg;
-    // ros::Publisher err_roll_b_pub = ctrl_interface_node.advertise<std_msgs::Float64>("/err_roll_b", 1);
-
-    // std_msgs::Float64 err_pitch_b_msg;
-    // ros::Publisher err_pitch_b_pub = ctrl_interface_node.advertise<std_msgs::Float64>("/err_pitch_b", 1);
-
     std_msgs::Float64 zero_setpoint_msg;
     zero_setpoint_msg.data = 0.0;
     ros::Publisher zero_setpoint_pub = ctrl_interface_node.advertise<std_msgs::Float64>("/pid_zero_setpoint", 1);
 
-    std_msgs::Float64 roll_cur_msg;
-    ros::Publisher roll_cur_pub = ctrl_interface_node.advertise<std_msgs::Float64>("/roll_cur", 1);
-
-    std_msgs::Float64 pitch_cur_msg;
-    ros::Publisher pitch_cur_pub = ctrl_interface_node.advertise<std_msgs::Float64>("/pitch_cur", 1);
+    geometry_msgs::Twist cmd_vel_msg;
+    ros::Publisher cmd_vel_pub = ctrl_interface_node.advertise<geometry_msgs::Twist>("/tello/cmd_vel", 1);
 
     // Subscribe to position reference
     ros::Subscriber state_w_sub = ctrl_interface_node.subscribe("/state_w", 1, stateCallback);
-    // ros::Subscriber cur_pos_w_sub = ctrl_interface_node.subscribe("cur_pos_w", 1, curPosCallback);
-    ros::Subscriber tf_w_sub = ctrl_interface_node.subscribe("/tf", 1, tfCallback);
-
-    ros::Subscriber drone_state_sub = ctrl_interface_node.subscribe("/drone_state", 1, droneStateCallback);
+    
+    ros::Subscriber ux_w_sub = ctrl_interface_node.subscribe("/pid_roll/control_effort", 1, uxCallback);
+    ros::Subscriber uy_w_sub = ctrl_interface_node.subscribe("/pid_pitch/control_effort", 1, uyCallback);
+    ros::Subscriber uz_w_sub = ctrl_interface_node.subscribe("/pid_thrust/control_effort", 1, uzCallback);
+    ros::Subscriber uyaw_w_sub = ctrl_interface_node.subscribe("/pid_yaw/control_effort", 1, uyawCallback);
 
     // Advertise service to update position reference
     ros::ServiceServer update_ref_pos_srv = ctrl_interface_node.advertiseService("/update_ref_pos", update_ref_pos);
@@ -247,25 +230,13 @@ int main(int argc, char **argv)
         // ROS_INFO("REF: %lf %lf", x_ref_w, y_ref_w);
         
         yaw_cur_w = get_yaw_from_quadternion(qx_cur_w, qy_cur_w, qz_cur_w, qw_cur_w);
-        roll_cur_w = get_roll_from_quadternion(qx_cur_w, qy_cur_w, qz_cur_w, qw_cur_w);
-        pitch_cur_w = get_pitch_from_quadternion(qx_cur_w, qy_cur_w, qz_cur_w, qw_cur_w);
 
 
         err_x_ref_w = x_ref_w - x_cur_w;
         err_y_ref_w = y_ref_w - y_cur_w;
 
-        // if (abs(err_x_ref_w) < 0.08)
-        //     err_x_ref_w = 0;
-
-        // if (abs(err_y_ref_w) < 0.08)
-        //     err_y_ref_w = 0;
-        
-
         err_x_b_msg.data = err_x_ref_w * cos(yaw_cur_w) + err_y_ref_w * sin(yaw_cur_w); // check sign
         err_y_b_msg.data = -err_x_ref_w * sin(yaw_cur_w) + err_y_ref_w * cos(yaw_cur_w); // check sign
-
-        pitch_cur_msg.data = vx_cur_w * cos(yaw_cur_w) + vy_cur_w * sin(yaw_cur_w); // vx_cur_b
-        roll_cur_msg.data = -vx_cur_w * sin(yaw_cur_w) + vy_cur_w * cos(yaw_cur_w);  // vy_cur_b
 
         err_alt_b_msg.data = alt_ref_w - alt_cur_w; 
 
@@ -276,13 +247,14 @@ int main(int argc, char **argv)
         err_yaw_b_msg.data = yaw_ref_w - yaw_cur_w;
         err_yaw_b_pub.publish(err_yaw_b_msg);   // the PID controller outputs body angular velocity command
 
-         
-        roll_cur_pub.publish(roll_cur_msg);
-        pitch_cur_pub.publish(pitch_cur_msg);
-
-  
-
         zero_setpoint_pub.publish(zero_setpoint_msg);
+
+        cmd_vel_msg.linear.x = ux_cur_w * cos(yaw_cur_w) + uy_cur_w * sin(yaw_cur_w);
+        cmd_vel_msg.linear.y = ux_cur_w * cos(yaw_cur_w) + uy_cur_w * sin(yaw_cur_w);
+        cmd_vel_msg.linear.z = uz_cur_w;
+        cmd_vel_msg.angular.z = uyaw_cur_w;
+
+        cmd_vel_pub.publish(cmd_vel_msg);
 
         ros::spinOnce();
         loop_rate.sleep();

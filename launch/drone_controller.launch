@@ -4,7 +4,6 @@
     <include file="$(find drone_controller)/launch/altitude_controller.launch" />
 
     <include file="$(find drone_controller)/launch/yaw_controller.launch" />
-    <include file="$(find drone_controller)/launch/rollpitch_controller.launch" />
 
     <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" />
     
@@ -16,24 +15,11 @@
         <!-- <remap from="/pid_zero_setpoint" to="/pid_yaw/state"/> -->
     </node>
 
-    <node name="joy_controller" pkg="drone_controller" type="joy_controller" output="screen" />
-
-    <node name="kf" pkg="kf" type="kf.py" />
 
     <!-- <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot"
-    args="/pid_roll/control_effort 
-          /pid_pitch/control_effort 
-          /pid_yaw/control_effort 
-          /pid_thrust/control_effort
-          /roll_control/control_effort
-          /pitch_control/control_effort" /> -->
-
-    <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot"
     args="/pid_roll/state 
           /pid_pitch/state 
           /pid_yaw/state 
-          /pid_thrust/state
-          /roll_control/control_effort
-          /pitch_control/control_effort" />
+          /pid_thrust/state" /> -->
     
 </launch>

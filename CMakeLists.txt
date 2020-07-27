@@ -149,10 +149,6 @@ add_executable(controller_interface src/controller_interface.cpp)
 target_link_libraries(controller_interface ${catkin_LIBRARIES})
 add_dependencies(controller_interface drone_controller_generate_messages_cpp)
 
-add_executable(joy_controller src/joy_controller.cpp)
-target_link_libraries(joy_controller ${catkin_LIBRARIES})
-add_dependencies(joy_controller drone_controller_generate_messages_cpp)
-
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
