@@ -133,6 +133,7 @@ void stateCallback(const geometry_msgs::PoseStamped& current_pose_read)
     x_cur_w = current_pose_read.pose.position.x;
     y_cur_w = current_pose_read.pose.position.y;
     alt_cur_w = current_pose_read.pose.position.z;
+    // alt_cur_w = current_pose_read.pose.position.y;
 
     qx_cur_w = current_pose_read.pose.orientation.x;
     qy_cur_w = current_pose_read.pose.orientation.y;
@@ -197,7 +198,7 @@ int main(int argc, char **argv)
     ros::Publisher cmd_vel_pub = ctrl_interface_node.advertise<geometry_msgs::Twist>("/tello/cmd_vel", 1);
 
     // Subscribe to position reference
-    ros::Subscriber state_w_sub = ctrl_interface_node.subscribe("/state_w", 1, stateCallback);
+    ros::Subscriber state_w_sub = ctrl_interface_node.subscribe("/mocap_node/Robot_4/pose", 1, stateCallback);
     
     ros::Subscriber ux_w_sub = ctrl_interface_node.subscribe("/pid_roll/control_effort", 1, uxCallback);
     ros::Subscriber uy_w_sub = ctrl_interface_node.subscribe("/pid_pitch/control_effort", 1, uyCallback);
@@ -225,10 +226,11 @@ int main(int argc, char **argv)
         loop_rate.sleep();
     }
 
+    
+
     while (ros::ok())
     {
-        // ROS_INFO("REF: %lf %lf", x_ref_w, y_ref_w);
-        
+        ROS_INFO("(x, y, z, yaw): %.03lf %.03lf %.03lf %.03lf", x_cur_w, y_cur_w, alt_cur_w, yaw_cur_w);
         yaw_cur_w = get_yaw_from_quadternion(qx_cur_w, qy_cur_w, qz_cur_w, qw_cur_w);
 
 
@@ -237,20 +239,31 @@ int main(int argc, char **argv)
 
         err_x_b_msg.data = err_x_ref_w * cos(yaw_cur_w) + err_y_ref_w * sin(yaw_cur_w); // check sign
         err_y_b_msg.data = -err_x_ref_w * sin(yaw_cur_w) + err_y_ref_w * cos(yaw_cur_w); // check sign
-
         err_alt_b_msg.data = alt_ref_w - alt_cur_w; 
+        err_yaw_b_msg.data = yaw_ref_w - yaw_cur_w;
+
+        // torelance error
+        if (abs(err_x_b_msg.data) < 0.03)
+            err_x_b_msg.data = 0.0;
+        if (abs(err_y_b_msg.data) < 0.03)
+            err_y_b_msg.data = 0.0;
+        if (abs(err_alt_b_msg.data) < 0.03)
+            err_alt_b_msg.data = 0.0;
+        if (abs(err_yaw_b_msg.data) < 0.1) // 5 degrees torelance
+            err_yaw_b_msg.data = 0.0;
 
         err_x_b_pub.publish(err_x_b_msg);       // the PID controller outputs body velocity command
         err_y_b_pub.publish(err_y_b_msg);       // the PID controller outputs body velocity command
         err_alt_b_pub.publish(err_alt_b_msg);   // the PID controller outputs body velocity command
-
-        err_yaw_b_msg.data = yaw_ref_w - yaw_cur_w;
         err_yaw_b_pub.publish(err_yaw_b_msg);   // the PID controller outputs body angular velocity command
+
+        ROS_INFO("(ex, ey, ez, eyaw): %.03lf %.03lf %.03lf %.03lf", 
+                    err_x_ref_w, err_y_ref_w, err_alt_b_msg.data, err_yaw_b_msg.data);
 
         zero_setpoint_pub.publish(zero_setpoint_msg);
 
-        cmd_vel_msg.linear.x = ux_cur_w * cos(yaw_cur_w) + uy_cur_w * sin(yaw_cur_w);
-        cmd_vel_msg.linear.y = ux_cur_w * cos(yaw_cur_w) + uy_cur_w * sin(yaw_cur_w);
+        cmd_vel_msg.linear.x = ux_cur_w;
+        cmd_vel_msg.linear.y = uy_cur_w;
         cmd_vel_msg.linear.z = uz_cur_w;
         cmd_vel_msg.angular.z = uyaw_cur_w;
 
