@@ -26,20 +26,13 @@ class WayPoint():
     def L2_2Ddistance_from(self, position):
         return math.sqrt((self.x - position.x) ** 2 + (self.y - position.y) ** 2)
 
-# class ControlCommand():
-#     def __init__(self, ux=0, uy=0, uz=0, uyaw=0):
-#         self.ux = ux
-#         self.uy = uy
-#         self.uz = uz
-#         self.uyaw = uyaw
-
 
 class WaypointsMission():
     def __init__(self):
         rospy.init_node("waypoint_mission", anonymous=True)
         self.rate = rospy.Rate(ROS_RATE)
         self.idx_wp = 0
-        self.wps = [WayPoint(0.1, 0.2, 0.8, 0), WayPoint(0.1, 0.4, 1.4, 0)]
+        self.wps = [WayPoint(0.0, 0.0, 2.0, 0), WayPoint(0.0, 3.0, 2.0, 0), WayPoint(2.0, 3.0, 1.0, 0), WayPoint(2.0, 0., 1.0, 0)]
         self.home_wp = WayPoint(0.0, 0.0, 1.0, 0)
         self.current_position = Point(0, 0, 0)
         self.position_control_command = Twist()
@@ -106,7 +99,7 @@ class WaypointsMission():
         rospy.loginfo("Update next waypoint index to %d" % self.idx_wp)
 
     def is_next_target_wp_reached(self):
-        if (self.wps[self.idx_wp].L2_distance_from(self.current_position) < 0.10):
+        if (self.wps[self.idx_wp].L2_distance_from(self.current_position) < 0.30):
             return True
         else:
             return False
@@ -125,9 +118,18 @@ class WaypointsMission():
         rospy.loginfo("Taking Off: Finish")
 
     def land(self):
-        rospy.loginfo("Landing")
+        rospy.loginfo("Landing: Prepare")
+        zero_control_command = Twist()
+        zero_control_command.linear.x = 0
+        zero_control_command.linear.y = 0
+        zero_control_command.linear.z = 0
+        zero_control_command.angular.z = 0
+        self.control_command_pub.publish(zero_control_command)
+        rospy.sleep(1)
+        rospy.loginfo("Landing: Start")
         land_msg = Empty()
         self.land_pub.publish(land_msg)
+        # rospy.sleep(3)
         rospy.loginfo("Landing: Finish")
 
     def set_next_waypoint(self, wp):
