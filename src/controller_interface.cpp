@@ -117,7 +117,7 @@ bool set_ref_pose(drone_controller::SetRefPose::Request  &req,
     alt_ref_w = req.alt_ref_w;
     yaw_ref_w = req.yaw_ref_w;
     res.update_status = true;
-    ROS_INFO("Set the reference pose to (x, y, alt, yaw) = (%lf, %lf, %lf, %lf).", x_ref_w, y_ref_w, alt_ref_w, yaw_ref_w);
+    ROS_INFO("Set the reference pose to (x, y, alt, yaw) = (%lf, %lf, %lf, %lf).\n", x_ref_w, y_ref_w, alt_ref_w, yaw_ref_w);
     reference_is_not_set = false;
 
     return true;
