@@ -194,22 +194,14 @@ int main(int argc, char **argv)
     zero_setpoint_msg.data = 0.0;
     ros::Publisher zero_setpoint_pub = ctrl_interface_node.advertise<std_msgs::Float64>("/pid_zero_setpoint", 1);
 
-    geometry_msgs::Twist cmd_vel_msg;
-    ros::Publisher cmd_vel_pub = ctrl_interface_node.advertise<geometry_msgs::Twist>("/tello/cmd_vel", 1);
-
     // Subscribe to position reference
     ros::Subscriber state_w_sub = ctrl_interface_node.subscribe("/mocap_node/Robot_4/pose", 1, stateCallback);
-    
-    ros::Subscriber ux_w_sub = ctrl_interface_node.subscribe("/pid_roll/control_effort", 1, uxCallback);
-    ros::Subscriber uy_w_sub = ctrl_interface_node.subscribe("/pid_pitch/control_effort", 1, uyCallback);
-    ros::Subscriber uz_w_sub = ctrl_interface_node.subscribe("/pid_thrust/control_effort", 1, uzCallback);
-    ros::Subscriber uyaw_w_sub = ctrl_interface_node.subscribe("/pid_yaw/control_effort", 1, uyawCallback);
 
     // Advertise service to update position reference
     ros::ServiceServer update_ref_pos_srv = ctrl_interface_node.advertiseService("/update_ref_pos", update_ref_pos);
     ros::ServiceServer update_ref_alt_srv = ctrl_interface_node.advertiseService("/update_ref_alt", update_ref_alt);
     ros::ServiceServer set_ref_pose_srv = ctrl_interface_node.advertiseService("/set_ref_pose", set_ref_pose);
-    ros::ServiceServer movr_drone_srv = ctrl_interface_node.advertiseService("/move_drone_w", move_drone_w);
+    ros::ServiceServer move_drone_srv = ctrl_interface_node.advertiseService("/move_drone_w", move_drone_w);
 
     double hz = 100.0;
 
@@ -225,8 +217,6 @@ int main(int argc, char **argv)
         ros::spinOnce();
         loop_rate.sleep();
     }
-
-    
 
     while (ros::ok())
     {
@@ -261,13 +251,6 @@ int main(int argc, char **argv)
                     err_x_ref_w, err_y_ref_w, err_alt_b_msg.data, err_yaw_b_msg.data);
 
         zero_setpoint_pub.publish(zero_setpoint_msg);
-
-        cmd_vel_msg.linear.x = ux_cur_w;
-        cmd_vel_msg.linear.y = uy_cur_w;
-        cmd_vel_msg.linear.z = uz_cur_w;
-        cmd_vel_msg.angular.z = uyaw_cur_w;
-
-        cmd_vel_pub.publish(cmd_vel_msg);
 
         ros::spinOnce();
         loop_rate.sleep();
