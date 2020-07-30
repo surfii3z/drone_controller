@@ -103,7 +103,7 @@ class VisionBasedMission():
                 if self.object_count == 0:
                     forward_control_command = Twist()
                     forward_control_command.linear.x = 0
-                    forward_control_command.linear.y = FORWARD_SPEED
+                    forward_control_command.linear.y = FORWARD_SPEED * 2
                     forward_control_command.linear.z = 0
                     forward_control_command.angular.z = 0
                     self.control_command_pub.publish(forward_control_command)
