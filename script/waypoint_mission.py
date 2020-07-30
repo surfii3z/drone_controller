@@ -9,7 +9,7 @@ from std_msgs.msg import Empty, Float64
 from geometry_msgs.msg import PoseStamped, Pose, Point, Twist
 
 # SERVICES
-from drone_controller.srv import *
+from drone_controller.srv import SetRefPose
 
 ROS_RATE = 30   # 30 Hz
 
@@ -36,8 +36,8 @@ class WaypointsMission():
         self.home_wp = WayPoint(0.0, 0.0, 1.0, 0)
         self.current_position = Point(0, 0, 0)
         self.position_control_command = Twist()
+        self.vision_control_command = Twist()
         
-
         # PUBLISHER
         self.take_off_pub = rospy.Publisher('/tello/takeoff', Empty, queue_size=1)
         self.land_pub = rospy.Publisher('/tello/land', Empty, queue_size=1)

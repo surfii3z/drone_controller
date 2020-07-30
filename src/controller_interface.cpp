@@ -11,8 +11,6 @@
 #include <nav_msgs/Odometry.h>
 
 // services
-#include "drone_controller/UpdateRefPos.h"
-#include "drone_controller/UpdateRefAlt.h"
 #include "drone_controller/MoveDroneW.h"
 #include "drone_controller/SetRefPose.h"
 
@@ -59,33 +57,6 @@ double get_yaw_from_quadternion(double qx, double qy, double qz, double qw)
     return atan2(2.0 * (qw * qz + qx * qy), 1 - 2.0 *(qy * qy + qz * qz));
 }
 
-double get_roll_from_quadternion(double qx, double qy, double qz, double qw)
-{
-    //ref: https://robotics.stackexchange.com/questions/16471/get-yaw-from-quaternion
-    return atan2(2.0 * (qw * qx + qy * qz), 1 - 2.0 *(qx * qx + qy * qy));
-}
-
-double get_pitch_from_quadternion(double qx, double qy, double qz, double qw)
-{
-    //ref: https://robotics.stackexchange.com/questions/16471/get-yaw-from-quaternion
-    double sinp = 2. * (qw * qy - qz * qx);
-    if (abs(sinp) >= 1)
-        return  copysign(M_PI_2, sinp);
-    else
-        return  asin(sinp);
-}
-
-bool update_ref_pos(drone_controller::UpdateRefPos::Request  &req,
-                    drone_controller::UpdateRefPos::Response &res)
-{
-    x_ref_w = req.x_ref_w;
-    y_ref_w = req.y_ref_w;
-    res.update_status = true;
-    ROS_INFO("Update the reference position to %lf, %lf.", x_ref_w, y_ref_w);
-
-    return true;
-}
-
 bool move_drone_w(drone_controller::MoveDroneW::Request  &req,
                   drone_controller::MoveDroneW::Response &res)
 {
@@ -95,16 +66,6 @@ bool move_drone_w(drone_controller::MoveDroneW::Request  &req,
     yaw_ref_w += req.dyaw;
     res.command_status = true;
     ROS_INFO("Move drone with offset (dx, dy, dalt, dyaw) = (%lf, %lf, %lf, %lf).", req.dx, req.dy, req.dalt, req.dyaw);
-
-    return true;
-}
-
-bool update_ref_alt(drone_controller::UpdateRefAlt::Request  &req,
-                    drone_controller::UpdateRefAlt::Response &res)
-{
-    alt_ref_w = req.alt_ref_w;
-    res.update_status = true;
-    ROS_INFO("Update the reference altitude to %lf.", alt_ref_w);
 
     return true;
 }
@@ -139,26 +100,6 @@ void stateCallback(const geometry_msgs::PoseStamped& current_pose_read)
     qy_cur_w = current_pose_read.pose.orientation.y;
     qz_cur_w = current_pose_read.pose.orientation.z;
     qw_cur_w = current_pose_read.pose.orientation.w;
-}
-
-void uxCallback(const std_msgs::Float64& current_ux_w)
-{
-    ux_cur_w = current_ux_w.data;
-}
-
-void uyCallback(const std_msgs::Float64& current_uy_w)
-{
-    uy_cur_w = current_uy_w.data;
-}
-
-void uzCallback(const std_msgs::Float64& current_uz_w)
-{
-    uz_cur_w = current_uz_w.data;
-}
-
-void uyawCallback(const std_msgs::Float64& current_uyaw_w)
-{
-    uyaw_cur_w = current_uyaw_w.data;
 }
 
 int main(int argc, char **argv)
@@ -198,8 +139,6 @@ int main(int argc, char **argv)
     ros::Subscriber state_w_sub = ctrl_interface_node.subscribe("/mocap_node/Robot_4/pose", 1, stateCallback);
 
     // Advertise service to update position reference
-    ros::ServiceServer update_ref_pos_srv = ctrl_interface_node.advertiseService("/update_ref_pos", update_ref_pos);
-    ros::ServiceServer update_ref_alt_srv = ctrl_interface_node.advertiseService("/update_ref_alt", update_ref_alt);
     ros::ServiceServer set_ref_pose_srv = ctrl_interface_node.advertiseService("/set_ref_pose", set_ref_pose);
     ros::ServiceServer move_drone_srv = ctrl_interface_node.advertiseService("/move_drone_w", move_drone_w);
 
