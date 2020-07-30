@@ -52,10 +52,10 @@ class WaypointsMission():
         rospy.loginfo("Waiting for /mocap_node/Robot_4/pose from mocap_optitrack node")
         rospy.wait_for_message('/mocap_node/Robot_4/pose', PoseStamped)
         self.pose_sub = rospy.Subscriber('/mocap_node/Robot_4/pose', PoseStamped, self.poseCallback)
-        self.pos_ux_sub = rospy.Subscriber('/pid_roll/control_effort', Float64, self.poseUxCallback)
-        self.pos_uy_sub = rospy.Subscriber('/pid_pitch/control_effort', Float64, self.poseUyCallback)
-        self.pos_uz_sub = rospy.Subscriber('/pid_thrust/control_effort', Float64, self.poseUzCallback)
-        self.pos_uyaw_sub = rospy.Subscriber('/pid_yaw/control_effort', Float64, self.poseUyawCallback)
+        self.pos_ux_sub = rospy.Subscriber('/pid_roll/control_effort', Float64, self.posUxCallback)
+        self.pos_uy_sub = rospy.Subscriber('/pid_pitch/control_effort', Float64, self.posUyCallback)
+        self.pos_uz_sub = rospy.Subscriber('/pid_thrust/control_effort', Float64, self.posUzCallback)
+        self.pos_uyaw_sub = rospy.Subscriber('/pid_yaw/control_effort', Float64, self.posUyawCallback)
 
         # MISSION
         self.start_mission()
@@ -66,16 +66,16 @@ class WaypointsMission():
     def poseCallback(self, msg):
         self.current_position = msg.pose.position
     
-    def poseUxCallback(self, msg):
+    def posUxCallback(self, msg):
         self.position_control_command.linear.x = msg.data
     
-    def poseUyCallback(self, msg):
+    def posUyCallback(self, msg):
         self.position_control_command.linear.y = msg.data
     
-    def poseUzCallback(self, msg):
+    def posUzCallback(self, msg):
         self.position_control_command.linear.z = msg.data
     
-    def poseUyawCallback(self, msg):
+    def posUyawCallback(self, msg):
         self.position_control_command.angular.z = msg.data
 
     def start_mission(self):
@@ -129,7 +129,6 @@ class WaypointsMission():
         rospy.loginfo("Landing: Start")
         land_msg = Empty()
         self.land_pub.publish(land_msg)
-        # rospy.sleep(3)
         rospy.loginfo("Landing: Finish")
 
     def set_next_waypoint(self, wp):

@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   message_generation
+  darknet_ros_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -57,8 +58,6 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  UpdateRefPos.srv
-  UpdateRefAlt.srv
   SetRefPose.srv
   MoveDroneW.srv
 )
@@ -74,6 +73,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  darknet_ros_msgs
 )
 
 ################################################
@@ -148,6 +148,10 @@ add_dependencies(altitude_controller_interface drone_controller_generate_message
 add_executable(controller_interface src/controller_interface.cpp)
 target_link_libraries(controller_interface ${catkin_LIBRARIES})
 add_dependencies(controller_interface drone_controller_generate_messages_cpp)
+
+add_executable(vision_based_controller_interface src/vision_based_controller_interface.cpp)
+target_link_libraries(vision_based_controller_interface ${catkin_LIBRARIES})
+add_dependencies(vision_based_controller_interface drone_controller_generate_messages_cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
