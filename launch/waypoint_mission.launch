@@ -1,6 +1,6 @@
 <launch>
     <include file="$(find drone_controller)/launch/drone_controller.launch" />
     <include file="$(find tello_driver)/launch/tello_orb_teloop.launch" />
-    <node name="waypoint_mission_node" pkg="drone_controller" type="waypoint_mission_orb_slam2.py" output="screen"/>
+    <!-- <node name="waypoint_mission_node" pkg="drone_controller" type="waypoint_mission_orb_slam2.py" output="screen"/> -->
  
 </launch>

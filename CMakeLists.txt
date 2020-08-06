@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   message_generation
   darknet_ros_msgs
+  tello_driver
 )
 
 ## System dependencies are found with CMake's conventions
@@ -177,10 +178,13 @@ add_dependencies(vision_based_controller_interface drone_controller_generate_mes
 
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
-# catkin_install_python(PROGRAMS
-#   scripts/my_python_script
-#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+catkin_install_python(PROGRAMS
+  scripts/waypoint_mission_orb_slam2.py
+  scripts/vision_based_mission.py
+  scripts/controller.py
+  scripts/waypoint_mission.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html

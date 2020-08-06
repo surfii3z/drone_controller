@@ -5,10 +5,11 @@ import sys
 import math
 
 # MESSAGES
-from std_msgs.msg import Empty, Float64
+from std_msgs.msg import Empty, Float64, UInt8
 from geometry_msgs.msg import PoseStamped, Pose, Point, Twist
 from sensor_msgs.msg import Image
 from tello_driver.msg import TelloStatus
+from tello_driver.srv import MoveUp, MoveDown
 
 # SERVICES
 from drone_controller.srv import SetRefPose, MoveDroneW
@@ -43,27 +44,34 @@ class WaypointsMission():
         self.zero_control_command = Twist()
         
         # PUBLISHER
-        self.take_off_pub = rospy.Publisher('/tello/takeoff', Empty, queue_size=1)
-        self.land_pub = rospy.Publisher('/tello/land', Empty, queue_size=1)
-        self.control_command_pub = rospy.Publisher('/tello/cmd_vel', Twist, queue_size=1)
-        self.fast_mode_pub = rospy.Publisher('/tello/fast_mode', Empty, queue_size=1)
+        self.pub_take_off = rospy.Publisher('/tello/takeoff', Empty, queue_size=1)
+        self.pub_land = rospy.Publisher('/tello/land', Empty, queue_size=1)
+        self.pub_control_command = rospy.Publisher('/tello/cmd_vel', Twist, queue_size=1)
+        self.pub_fast_mode = rospy.Publisher('/tello/fast_mode', Empty, queue_size=1)
+        # self.pub_up = rospy.Publisher('/tello/up', UInt8, queue_size=1)
+        # self.pub_down = rospy.Publisher('/tello/down', UInt8, queue_size=1)
+        
 
         rospy.loginfo("Waiting for /set_ref_pose from drone_controller node")
         rospy.wait_for_service('/set_ref_pose')
         
         self.update_target_call = rospy.ServiceProxy('/set_ref_pose', SetRefPose)
         self.move_drone_call = rospy.ServiceProxy('/move_drone_w', MoveDroneW)
+        self.srv_cli_up = rospy.ServiceProxy('/tello/up', MoveUp)
+        self.srv_cli_down = rospy.ServiceProxy('/tello/down', MoveDown)
 
         # SUBSCRIBER
         rospy.loginfo("Waiting for ORB_SLAM2 to get image from tello")
         rospy.wait_for_message('/tello/image_repub', Image)
-        self.pose_sub = rospy.Subscriber('/orb_pose', PoseStamped, self.poseCallback)
-        self.pos_ux_sub = rospy.Subscriber('/pid_roll/control_effort', Float64, self.posUxCallback)
-        self.pos_uy_sub = rospy.Subscriber('/pid_pitch/control_effort', Float64, self.posUyCallback)
-        self.pos_uz_sub = rospy.Subscriber('/pid_thrust/control_effort', Float64, self.posUzCallback)
-        self.pos_uyaw_sub = rospy.Subscriber('/pid_yaw/control_effort', Float64, self.posUyawCallback)
+        self.sub_pose = rospy.Subscriber('/orb_pose', PoseStamped, self.cb_pose)
+        self.sub_pos_ux = rospy.Subscriber('/pid_roll/control_effort', Float64, self.cb_pos_ux)
+        self.sub_pos_uy = rospy.Subscriber('/pid_pitch/control_effort', Float64, self.cb_pos_uy)
+        self.sub_pos_uz = rospy.Subscriber('/pid_thrust/control_effort', Float64, self.cb_pos_uz)
+        self.sub_pos_uyaw = rospy.Subscriber('/pid_yaw/control_effort', Float64, self.cb_pos_uyaw)
 
-        self.tello_status_sub = rospy.Subscriber('/tello/status', TelloStatus, self.statusCallback)
+        self.tello_status_sub = rospy.Subscriber('/tello/status', TelloStatus, self.cb_tello_status)
+
+        rospy.sleep(1)
     
     def run(self):
         self.take_off()
@@ -72,51 +80,59 @@ class WaypointsMission():
         self.land()
 
     # CALLBACK FUNCTIONS
-    def poseCallback(self, msg):
+    def cb_pose(self, msg):
         self.current_position = msg.pose.position
     
-    def posUxCallback(self, msg):
+    def cb_pos_ux(self, msg):
         self.position_control_command.linear.x = msg.data
     
-    def posUyCallback(self, msg):
+    def cb_pos_uy(self, msg):
         self.position_control_command.linear.y = msg.data
     
-    def posUzCallback(self, msg):
+    def cb_pos_uz(self, msg):
         self.position_control_command.linear.z = msg.data
     
-    def posUyawCallback(self, msg):
+    def cb_pos_uyaw(self, msg):
         self.position_control_command.angular.z = msg.data
 
-    def statusCallback(self, msg):
+    def cb_tello_status(self, msg):
         self.height = msg.height_m
 
     def calibrate_scale(self):
         rospy.loginfo("Calibrating the scale")
-        self.update_target_call(0, 0, 1, 0)
         rospy.loginfo("Waiting for ORB_SLAM2 to initialize the map")
         rospy.wait_for_message('/orb_pose', PoseStamped)
         start_orb_height = self.current_position.z
         start_sensor_height = self.height
-        self.move_up(0.5)
+        rospy.sleep(5)
+        self.move_up(50)
         end_orb_height = self.current_position.z
         end_sensor_height = self.height
+        rospy.sleep(0.8)
+        self.move_down(50)
         scale_factor_orb = (end_sensor_height - start_sensor_height) / (end_orb_height - start_orb_height)
         return scale_factor_orb
 
-    def move_up(self, m):
+    def move_up(self, cm):
         try:
-            res = self.move_drone_call(0, 0, m, 0)
-            check = 0   
-            while not rospy.is_shutdown():
-                self.control_command_pub.publish(self.position_control_command)
-                if (abs(self.position_control_command.linear.z)) < 0.08:    # check z command magnitude should be near 0
-                    check += 1
-                if check > 300: # if the command is near 0 for 300 cycles, terminated
-                    break
-                self.rate.sleep()
+            rospy.loginfo("Start to move up %d cm" % cm)
+            res = self.srv_cli_up(cm)
+            rospy.loginfo(res)
             return res
         except rospy.ServiceException as e:
-            rospy.logerr("Service call failed: %s"%e)
+            rospy.logerr("Service call failed: %s" % e)
+    
+    def move_down(self, cm):
+        try:
+            rospy.loginfo("Start to move down %d cm" % cm)
+            res = self.srv_cli_down(cm)
+            return res
+        except rospy.ServiceException as e:
+            rospy.logerr("Service call failed: %s" % e)
+
+    # def move_down(self, cm):
+    #     rospy.loginfo("Start to move down")
+    #     self.pub_down.publish(UInt8(cm))
     
     def start_mission(self):
         rospy.loginfo("Prepare to start the mission")
@@ -126,7 +142,7 @@ class WaypointsMission():
         self.set_waypoint(self.wps[self.idx_wp])
         
         while not rospy.is_shutdown():
-            self.control_command_pub.publish(self.position_control_command)
+            self.pub_control_command.publish(self.position_control_command)
             if (self.is_next_target_wp_reached()):
                 if self.is_mission_finished():
                     return
@@ -154,21 +170,21 @@ class WaypointsMission():
     def take_off(self):
         rospy.loginfo("Taking Off")
         take_off_msg = Empty()
-        self.take_off_pub.publish(take_off_msg)
+        self.pub_take_off.publish(take_off_msg)
         rospy.loginfo("Taking Off: Finish")
 
     def enter_fast_mode(self):
         rospy.loginfo("Entering Fast Mode")
-        self.fast_mode_pub.publish(Empty())
+        self.pub_fast_mode.publish(Empty())
         rospy.loginfo("Entering Fast Mode: Finish")
 
     def land(self):
         rospy.loginfo("Landing: Prepare")
-        self.control_command_pub.publish(self.zero_control_command)
+        self.pub_control_command.publish(self.zero_control_command)
         rospy.sleep(1)
         rospy.loginfo("Landing: Start")
         land_msg = Empty()
-        self.land_pub.publish(land_msg)
+        self.pub_land.publish(land_msg)
         rospy.loginfo("Landing: Finish")
 
     def set_waypoint(self, wp):
@@ -182,7 +198,7 @@ class WaypointsMission():
         rospy.loginfo("Mission finished: Returning Home")
         self.set_home_waypoint()
         while not rospy.is_shutdown():
-            self.control_command_pub.publish(self.position_control_command)
+            self.pub_control_command.publish(self.position_control_command)
             if (self.is_home_reached()):
                 return
             self.rate.sleep()
@@ -200,6 +216,6 @@ if __name__ == '__main__':
         auto_racer.take_off()
         scale = auto_racer.calibrate_scale()
         rospy.loginfo(scale)
-        auto_racer.take_off()
+        auto_racer.land()
     except rospy.ROSInterruptException:
         pass
