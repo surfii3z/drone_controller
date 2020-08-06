@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "browse": {
+                "databaseFilename": "",
+                "limitSymbolsToIncludedHeaders": true
+            },
+            "includePath": [
+                "/home/jedsadakorn/ros_tello_ws/devel/include/**",
+                "/opt/ros/melodic/include/**",
+                "/home/jedsadakorn/ros_tello_ws/src/darknet_ros/darknet_ros/include/**",
+                "/home/jedsadakorn/ros_tello_ws/src/pid/include/**",
+                "/home/jedsadakorn/ros_tello_ws/src/tello_auto_pilot/include/**",
+                "/usr/include/**"
+            ],
+            "name": "ROS",
+            "intelliSenseMode": "gcc-x64",
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++14"
+        }
+    ],
+    "version": 4
+}
