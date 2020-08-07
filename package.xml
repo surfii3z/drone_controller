@@ -2,7 +2,7 @@
 <package format="2">
   <name>drone_controller</name>
   <version>0.0.0</version>
-  <description>The drone_controller package</description>
+  <description>The tello_pid package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->

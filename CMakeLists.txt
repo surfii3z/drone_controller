@@ -12,6 +12,8 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   message_generation
+  darknet_ros_msgs
+  tello_driver
 )
 
 ## System dependencies are found with CMake's conventions
@@ -57,8 +59,6 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  UpdateRefPos.srv
-  UpdateRefAlt.srv
   SetRefPose.srv
   MoveDroneW.srv
 )
@@ -74,6 +74,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  darknet_ros_msgs
 )
 
 ################################################
@@ -149,9 +150,9 @@ add_executable(controller_interface src/controller_interface.cpp)
 target_link_libraries(controller_interface ${catkin_LIBRARIES})
 add_dependencies(controller_interface drone_controller_generate_messages_cpp)
 
-add_executable(joy_controller src/joy_controller.cpp)
-target_link_libraries(joy_controller ${catkin_LIBRARIES})
-add_dependencies(joy_controller drone_controller_generate_messages_cpp)
+add_executable(vision_based_controller_interface src/vision_based_controller_interface.cpp)
+target_link_libraries(vision_based_controller_interface ${catkin_LIBRARIES})
+add_dependencies(vision_based_controller_interface drone_controller_generate_messages_cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -177,10 +178,13 @@ add_dependencies(joy_controller drone_controller_generate_messages_cpp)
 
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
-# catkin_install_python(PROGRAMS
-#   scripts/my_python_script
-#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+catkin_install_python(PROGRAMS
+  scripts/waypoint_mission_orb_slam2.py
+  scripts/vision_based_mission.py
+  scripts/controller.py
+  scripts/waypoint_mission.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html

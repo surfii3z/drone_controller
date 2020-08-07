@@ -14,6 +14,11 @@
         "complex": "cpp",
         "unordered_map": "cpp",
         "unordered_set": "cpp",
-        "*.cuh": "cpp"
-    }
+        "*.cuh": "cpp",
+        "bitset": "cpp",
+        "chrono": "cpp",
+        "hash_map": "cpp",
+        "hash_set": "cpp"
+    },
+    "cmake.configureOnOpen": false
 }
