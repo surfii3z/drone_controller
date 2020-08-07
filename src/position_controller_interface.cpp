@@ -3,8 +3,6 @@
 
 #include <std_msgs/Float64.h>
 #include <geometry_msgs/Pose2D.h>
-#include "drone_controller/UpdateRefPos.h"
-
 
 namespace position_controller_interface
 {
@@ -16,30 +14,6 @@ namespace position_controller_interface
     static double yaw_cur = 0.0;
 }
 using namespace position_controller_interface;
-
-
-bool update_ref_pos(drone_controller::UpdateRefPos::Request  &req,
-                    drone_controller::UpdateRefPos::Response &res)
-{
-    x_ref = req.x_ref_w;
-    y_ref = req.y_ref_w;
-    res.update_status = true;
-    ROS_INFO("Update the reference position to %lf, %lf.", x_ref, y_ref);
-
-    return true;
-}
-
-
-// void refPosCallback(const geometry_msgs::Pose2D& reference_position_input)
-// {
-//     x_ref = reference_position_input.x;
-//     y_ref = reference_position_input.y;
-//     ROS_INFO("Update the reference position to %lf, %lf.", x_ref, y_ref);
-//     if (reference_position_input.theta != 0.0)
-//     {
-//         ROS_WARN("This controller only takes reference position (x,y) as the input. Theta will not be used.");
-//     }
-// }
 
 void curPosCallback(const geometry_msgs::Pose2D& current_pose_read)
 {
@@ -83,9 +57,6 @@ int main(int argc, char **argv)
     // Subscribe to position reference
     // ros::Subscriber ref_pos_w_sub = pos_ctrl_node.subscribe("ref_pos_w", 1, refPosCallback);
     ros::Subscriber cur_pos_w_sub = pos_ctrl_node.subscribe("cur_pos_w", 1, curPosCallback);
-
-    // Advertise service to update position reference
-    ros::ServiceServer update_ref_pos_srv = pos_ctrl_node.advertiseService("/update_ref_pos", update_ref_pos);
 
     double hz = 100.0;
 

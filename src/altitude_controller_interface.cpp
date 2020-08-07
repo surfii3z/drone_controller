@@ -2,7 +2,6 @@
 #include <math.h>
 
 #include <std_msgs/Float64.h>
-#include "drone_controller/UpdateRefAlt.h"
 
 namespace altitude_controller_interface
 {
@@ -12,16 +11,6 @@ namespace altitude_controller_interface
 }
 
 using namespace altitude_controller_interface;
-
-bool update_ref_alt(drone_controller::UpdateRefAlt::Request  &req,
-                    drone_controller::UpdateRefAlt::Response &res)
-{
-    alt_ref_w = req.alt_ref_w;
-    res.update_status = true;
-    ROS_INFO("Update the reference altitude to %lf.", alt_ref_w);
-
-    return true;
-}
 
 void curAltCallback(const std_msgs::Float64& current_alt_read)
 {
@@ -57,9 +46,6 @@ int main(int argc, char **argv)
 
     // Subscribe to altitude reference
     ros::Subscriber cur_alt_w_sub = alt_ctrl_node.subscribe("cur_alt_w", 1, curAltCallback);
-
-    // Advertise service to update altitude reference
-    ros::ServiceServer update_ref_alt_srv = alt_ctrl_node.advertiseService("/update_ref_alt", update_ref_alt);
 
     double hz = 100.0;
 
