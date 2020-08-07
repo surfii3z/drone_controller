@@ -129,10 +129,6 @@ class WaypointsMission():
             return res
         except rospy.ServiceException as e:
             rospy.logerr("Service call failed: %s" % e)
-
-    # def move_down(self, cm):
-    #     rospy.loginfo("Start to move down")
-    #     self.pub_down.publish(UInt8(cm))
     
     def start_mission(self):
         rospy.loginfo("Prepare to start the mission")
