@@ -8,8 +8,11 @@ import math
 from std_msgs.msg import Empty, Float64, UInt8
 from geometry_msgs.msg import PoseStamped, Pose, Point, Twist
 from sensor_msgs.msg import Image
+from nav_msgs.msg import Path
+
 from tello_driver.msg import TelloStatus
 from tello_driver.srv import MoveUp, MoveDown
+
 
 # SERVICES
 from drone_controller.srv import SetRefPose, MoveDroneW
@@ -42,18 +45,18 @@ class WaypointsMission():
         self.position_control_command = Twist()
         self.vision_control_command = Twist()
         self.zero_control_command = Twist()
+        self.path_msg = Path()
+        self.scale = 1
         
         # PUBLISHER
         self.pub_take_off = rospy.Publisher('/tello/takeoff', Empty, queue_size=1)
         self.pub_land = rospy.Publisher('/tello/land', Empty, queue_size=1)
         self.pub_control_command = rospy.Publisher('/tello/cmd_vel', Twist, queue_size=1)
         self.pub_fast_mode = rospy.Publisher('/tello/fast_mode', Empty, queue_size=1)
-        # self.pub_up = rospy.Publisher('/tello/up', UInt8, queue_size=1)
-        # self.pub_down = rospy.Publisher('/tello/down', UInt8, queue_size=1)
-        
+        self.pub_orb_path = rospy.Publisher("/orb_path", Path, queue_size=1)
 
-        rospy.loginfo("Waiting for /set_ref_pose from drone_controller node")
-        rospy.wait_for_service('/set_ref_pose')
+        # rospy.loginfo("Waiting for /set_ref_pose from drone_controller node")
+        # rospy.wait_for_service('/set_ref_pose')
         
         self.update_target_call = rospy.ServiceProxy('/set_ref_pose', SetRefPose)
         self.move_drone_call = rospy.ServiceProxy('/move_drone_w', MoveDroneW)
@@ -81,7 +84,21 @@ class WaypointsMission():
 
     # CALLBACK FUNCTIONS
     def cb_pose(self, msg):
-        self.current_position = msg.pose.position
+        msg.header.frame_id = "map"
+        self.path_msg.header = msg.header
+        msg.pose.position.x = msg.pose.position.x * self.scale
+        msg.pose.position.y = msg.pose.position.y * self.scale
+        msg.pose.position.z = msg.pose.position.z * self.scale
+
+        self.path_msg.poses.append(msg)
+        self.pub_orb_path.publish(self.path_msg)
+
+        # update current position
+        self.current_position.x = msg.pose.position.x
+        self.current_position.y = msg.pose.position.y
+        self.current_position.z = msg.pose.position.z
+
+    
     
     def cb_pos_ux(self, msg):
         self.position_control_command.linear.x = msg.data
@@ -111,6 +128,7 @@ class WaypointsMission():
         rospy.sleep(0.8)
         self.move_down(50)
         scale_factor_orb = (end_sensor_height - start_sensor_height) / (end_orb_height - start_orb_height)
+        self.scale = scale_factor_orb
         return scale_factor_orb
 
     def move_up(self, cm):
@@ -212,6 +230,8 @@ if __name__ == '__main__':
         auto_racer.take_off()
         scale = auto_racer.calibrate_scale()
         rospy.loginfo(scale)
-        auto_racer.land()
+
+        rospy.spin()
+        
     except rospy.ROSInterruptException:
-        pass
+        auto_racer.land()
