@@ -3,6 +3,7 @@
 import rospy
 import sys
 import math
+import numpy as np
 
 # MESSAGES
 from std_msgs.msg import Empty, Float64, UInt8
@@ -123,50 +124,59 @@ class WaypointsMission():
     def calibrate_scale(self):
         rospy.loginfo("Waiting for ORB_SLAM2 to initialize the map")
         rospy.wait_for_message('/orb_pose', PoseStamped)
+        rospy.loginfo("ORB_SLAM2 map is initialized")
         rospy.loginfo("Calibrating the scale")
-        rospy.sleep(3)
-        start_orb_height = self.current_position.z
-        start_sensor_height = self.height
+        N = 30
+
+        # starting point
+        start_orb_height = np.empty(N)
+        start_sensor_height = np.empty(N)
+        for i in range(N):
+            start_orb_height[i] = self.current_position.z
+            start_sensor_height[i] = self.height
+            rospy.sleep(0.1)
+
+        # moving up
         self.move_up(80)
-        up_orb_height = self.current_position.z
-        up_sensor_height = self.height
-
-        # a lot of time the drone won't go up by the first command: BUG?
-        if up_sensor_height - start_sensor_height < 0.1:
-            start_orb_height = self.current_position.z
-            start_sensor_height = self.height
+        # BUG: a lot of time the drone won't go up by the first command
+        if self.height - start_sensor_height[-1] < 0.1:
             self.move_up(80)
-            up_orb_height = self.current_position.z
-            up_sensor_height = self.height
+        up_orb_height = np.empty(N)
+        up_sensor_height = np.empty(N)
+        for i in range(N):
+            up_orb_height[i] = self.current_position.z
+            up_sensor_height[i] = self.height
+            rospy.sleep(0.1)   
 
-        rospy.sleep(3)
+        # moving down
         self.move_down(80)
-        down_orb_height = self.current_position.z
-        down_sensor_height = self.height
+        down_orb_height = np.empty(N)
+        down_sensor_height = np.empty(N)
+        for i in range(N):
+            down_orb_height[i] = self.current_position.z
+            down_sensor_height[i] = self.height
+            rospy.sleep(0.1)
+
         try:
-            scale_factor_orb_up = (up_sensor_height - start_sensor_height) / (up_orb_height - start_orb_height)
-            scale_factor_orb_down = (up_sensor_height - down_sensor_height) / (up_orb_height - down_orb_height)
+            scale_factor_orb_up = (np.median(up_sensor_height) - np.median(start_sensor_height)) / (np.median(up_orb_height) - np.median(start_orb_height))
+            scale_factor_orb_down = (np.median(up_sensor_height) - np.median(down_sensor_height)) / (np.median(up_orb_height) - np.median(down_orb_height))
         except ZeroDivisionError:
             rospy.logerr("calibrate scale: zero division")
             return -1
 
-        rospy.logwarn("up_sensor_height - start_sensor_height = {}".format(up_sensor_height - start_sensor_height))
-        rospy.logwarn("up_sensor_height - down_sensor_height = {}".format(up_sensor_height - down_sensor_height))
-
         if scale_factor_orb_up < 0 or abs(scale_factor_orb_down / scale_factor_orb_up - 1) > 0.1:
             rospy.logwarn("The scale calibration is bad. Landing the drone")
-            
-            rospy.logwarn("scale_factor_orb_up = {}".format(scale_factor_orb_up))
-            rospy.logwarn("scale_factor_orb_down = {}".format(scale_factor_orb_down))
             rospy.logwarn("scale ratio = {}".format(scale_factor_orb_up / scale_factor_orb_down))
             
             return -1
 
-        self.scale = scale_factor_orb_up
+        self.scale = 0.5 * (scale_factor_orb_up + scale_factor_orb_down)
         self.is_scale_calibrate = True
         self.pub_orb_path = rospy.Publisher("/orb_path", Path, queue_size=1)    # initialize the orb path publisher 
 
         return scale_factor_orb_up
+    
+
 
     def move_up(self, cm):
         try:
@@ -222,6 +232,7 @@ class WaypointsMission():
         rospy.loginfo("Taking Off")
         take_off_msg = Empty()
         self.pub_take_off.publish(take_off_msg)
+        rospy.sleep(3)
         rospy.loginfo("Taking Off: Finish")
 
     def enter_fast_mode(self):
