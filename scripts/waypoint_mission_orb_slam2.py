@@ -121,17 +121,26 @@ class WaypointsMission():
         self.height = msg.height_m
 
     def calibrate_scale(self):
-        rospy.loginfo("Calibrating the scale")
         rospy.loginfo("Waiting for ORB_SLAM2 to initialize the map")
         rospy.wait_for_message('/orb_pose', PoseStamped)
+        rospy.loginfo("Calibrating the scale")
+        rospy.sleep(3)
         start_orb_height = self.current_position.z
         start_sensor_height = self.height
-        rospy.sleep(6)
-        self.move_up(50)
+        self.move_up(80)
         up_orb_height = self.current_position.z
         up_sensor_height = self.height
+
+        # a lot of time the drone won't go up by the first command: BUG?
+        if up_sensor_height - start_sensor_height < 0.1:
+            start_orb_height = self.current_position.z
+            start_sensor_height = self.height
+            self.move_up(80)
+            up_orb_height = self.current_position.z
+            up_sensor_height = self.height
+
         rospy.sleep(3)
-        self.move_down(50)
+        self.move_down(80)
         down_orb_height = self.current_position.z
         down_sensor_height = self.height
         try:
@@ -139,10 +148,18 @@ class WaypointsMission():
             scale_factor_orb_down = (up_sensor_height - down_sensor_height) / (up_orb_height - down_orb_height)
         except ZeroDivisionError:
             rospy.logerr("calibrate scale: zero division")
-            scale_factor_orb_up = -1    # terminate the program
+            return -1
 
-        if scale_factor_orb_up < 0 or abs(scale_factor_orb_down / scale_factor_orb_up - 1) > 0.05:
-            rospy.logerr("The scale calibration is bad. Landing the drone")
+        rospy.logwarn("up_sensor_height - start_sensor_height = {}".format(up_sensor_height - start_sensor_height))
+        rospy.logwarn("up_sensor_height - down_sensor_height = {}".format(up_sensor_height - down_sensor_height))
+
+        if scale_factor_orb_up < 0 or abs(scale_factor_orb_down / scale_factor_orb_up - 1) > 0.1:
+            rospy.logwarn("The scale calibration is bad. Landing the drone")
+            
+            rospy.logwarn("scale_factor_orb_up = {}".format(scale_factor_orb_up))
+            rospy.logwarn("scale_factor_orb_down = {}".format(scale_factor_orb_down))
+            rospy.logwarn("scale ratio = {}".format(scale_factor_orb_up / scale_factor_orb_down))
+            
             return -1
 
         self.scale = scale_factor_orb_up
