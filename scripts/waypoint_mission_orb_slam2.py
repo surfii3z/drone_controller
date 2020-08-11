@@ -3,10 +3,12 @@
 import math
 import numpy as np
 import rospy
+import copy
+import tf
 
 # MESSAGES
-from std_msgs.msg import Empty, Float64
-from geometry_msgs.msg import PoseStamped, Point, Twist
+from std_msgs.msg import Empty, Float64, Header
+from geometry_msgs.msg import Twist, PoseStamped, Pose, Point, Quaternion
 from sensor_msgs.msg import Image
 from nav_msgs.msg import Path
 
@@ -22,28 +24,19 @@ ROS_RATE = 30   # 30 Hz
 def shutdown_handler():
     rospy.loginfo("Shut down")
 
-class WayPoint():
-    def __init__(self, x, y, z, yaw):
-        self.x = x
-        self.y = y
-        self.z = z
-        self.yaw = yaw
-
-    def L2_distance_from(self, position):
-        return math.sqrt((self.x - position.x) ** 2 + (self.y - position.y) ** 2 + (self.z - position.z) ** 2)
-    
-    def L2_2Ddistance_from(self, position):
-        return math.sqrt((self.x - position.x) ** 2 + (self.y - position.y) ** 2)
-
-
 class WaypointsMission():
     def __init__(self):
         rospy.init_node("waypoint_mission", anonymous=True)
         self.rate = rospy.Rate(ROS_RATE)
         self.idx_wp = 0
-        self.wps = [WayPoint(0.0, 0.0, 2.0, 0), WayPoint(0.0, 3.0, 2.0, 0), WayPoint(2.0, 3.0, 1.0, 0), WayPoint(2.0, 0., 1.0, 0)]
-        self.home_wp = WayPoint(0.0, 0.0, 1.0, 0)
-        self.current_position = Point(0, 0, 0)
+        self.frame_id = "map"
+        
+        self.home_wp = PoseStamped(header=Header(stamp=rospy.Time.now(), frame_id=self.frame_id),
+                                   pose=Pose(position=Point(0, 0, 1),
+                                                             orientation=Quaternion(0, 0, 0, 1)))
+        self.wps = []
+
+        self.current_pose = copy.deepcopy(self.home_wp)
         self.height = 0
         self.position_control_command = Twist()
         self.vision_control_command = Twist()
@@ -61,7 +54,6 @@ class WaypointsMission():
         self.pub_fast_mode = rospy.Publisher('/tello/fast_mode', Empty, queue_size=1)
         self.pub_orb_path = None
         
-
         # rospy.loginfo("Waiting for /set_ref_pose from drone_controller node")
         # rospy.wait_for_service('/set_ref_pose')
         
@@ -82,12 +74,6 @@ class WaypointsMission():
         self.tello_status_sub = rospy.Subscriber('/tello/status', TelloStatus, self.cb_tello_status)
 
         rospy.sleep(1)
-    
-    def run(self):
-        self.take_off()
-        self.start_mission()
-        self.return_home()
-        self.land()
 
     # CALLBACK FUNCTIONS
     def cb_pose(self, msg):
@@ -99,15 +85,11 @@ class WaypointsMission():
 
         self.path_msg.poses.append(msg)
         
-
+        self.current_pose = msg
         # update current position
-        self.current_position.x = msg.pose.position.x
-        self.current_position.y = msg.pose.position.y
 
-        if not self.is_scale_calibrate:
-            self.current_position.z = msg.pose.position.z
-        else:
-            self.current_position.z = self.height   # from height sensor
+        if self.is_scale_calibrate:
+            self.current_pose.pose.position.z = msg.pose.position.z + self.z_bias
             self.pub_orb_path.publish(self.path_msg)
 
     def cb_pos_ux(self, msg):
@@ -124,6 +106,17 @@ class WaypointsMission():
 
     def cb_tello_status(self, msg):
         self.height = msg.height_m
+
+    def add_wp(self, x, y, z, yaw):
+        q_temp = tf.transformations.quaternion_from_euler(0, 0, yaw).tolist()
+        wp = PoseStamped(Header(stamp=rospy.Time.now(), frame_id=self.frame_id),
+                         Pose(position=Point(x, y, z), 
+                              orientation=Quaternion(*q_temp)))
+        wp.pose.position.x = x
+        wp.pose.position.y = y
+        wp.pose.position.z = z
+        self.wps.append(wp)
+        
 
     def calibrate_scale(self, N_sample=60, sampling_freq=10, distance=80):
         '''
@@ -147,7 +140,7 @@ class WaypointsMission():
         start_orb_height = np.empty(N_sample)
         start_sensor_height = np.empty(N_sample)
         for i in range(N_sample):
-            start_orb_height[i] = self.current_position.z
+            start_orb_height[i] = self.current_pose.pose.position.z
             start_sensor_height[i] = self.height
             rospy.sleep(1/sampling_freq)
 
@@ -160,7 +153,7 @@ class WaypointsMission():
         up_orb_height = np.empty(N_sample)
         up_sensor_height = np.empty(N_sample)
         for i in range(N_sample):
-            up_orb_height[i] = self.current_position.z
+            up_orb_height[i] = self.current_pose.pose.position.z
             up_sensor_height[i] = self.height
             rospy.sleep(1/sampling_freq)   
 
@@ -169,7 +162,7 @@ class WaypointsMission():
         down_orb_height = np.empty(N_sample)
         down_sensor_height = np.empty(N_sample)
         for i in range(N_sample):
-            down_orb_height[i] = self.current_position.z
+            down_orb_height[i] = self.current_pose.pose.position.z
             down_sensor_height[i] = self.height
             rospy.sleep(1/sampling_freq)
 
@@ -202,10 +195,6 @@ class WaypointsMission():
         self.pub_orb_path = rospy.Publisher("/orb_path", Path, queue_size=1)
 
         return 0
-
-    def _calculate_z_bias(self, sensor_heights, orb_heights, orb_scale):
-        return np.median(sensor_heights) - np.median(orb_heights * orb_scale)
-    
     
     def move_up(self, cm):
         try:
@@ -244,14 +233,11 @@ class WaypointsMission():
         self.idx_wp = self.idx_wp + 1
         rospy.loginfo("Update next waypoint index to %d" % self.idx_wp)
 
-    def is_next_target_wp_reached(self):
-        if (self.wps[self.idx_wp].L2_distance_from(self.current_position) < 0.30):
-            return True
-        else:
-            return False
+    def is_next_target_wp_reached(self, th=0.30):
+        return self._L2_distance_from(self.wps[self.idx_wp]) < th
     
-    def is_home_reached(self):
-        return self.home_wp.L2_2Ddistance_from(self.current_position) < 0.10
+    def is_home_reached(self, th=0.10):
+        return self._L2_2Ddistance_from(self.home_wp) < th
     
     def is_mission_finished(self):
         # index start from zero
@@ -280,8 +266,13 @@ class WaypointsMission():
         rospy.on_shutdown(shutdown_handler)
 
     def set_waypoint(self, wp):
+        assert(isinstance(wp, PoseStamped)), "wp should be a PoseStamped"
         try:
-            res = self.update_target_call(wp.x, wp.y, wp.z, wp.yaw)
+            _, _, yaw = self._get_rpy(wp)
+            res = self.update_target_call(wp.pose.position.x, \
+                                          wp.pose.position.y, \
+                                          wp.pose.position.z, \
+                                          yaw)
             return res
         except rospy.ServiceException as e:
             rospy.logerr("Service call failed: %s"%e)
@@ -297,10 +288,43 @@ class WaypointsMission():
     
     def set_home_waypoint(self):
         try:
-            res = self.update_target_call(self.home_wp.x, self.home_wp.y, self.home_wp.z, self.home_wp.yaw)
+            _, _, yaw = self._get_rpy(self.home_wp)
+            res = self.update_target_call(self.home_wp.pose.position.x, \
+                                          self.home_wp.pose.position.y, \
+                                          self.home_wp.pose.position.z, \
+                                          yaw)
             return res
         except rospy.ServiceException as e:
             rospy.logerr("Service call failed: %s"%e)
+    
+    def run(self):
+        self.take_off()
+        self.start_mission()
+        self.return_home()
+        self.land()
+    
+    def _get_rpy(self, wp):
+        '''
+            return the [roll, pitch, yaw] of the waypoint (wp)
+                   type: list of len(3) = len([roll, pitch, yaw])
+        '''
+        assert(isinstance(wp, PoseStamped)), "wp should be a PoseStamped"
+        q = wp.pose.orientation
+        return tf.transformations.euler_from_quaternion((q.x, q.y, q.z, q.w))
+    
+    def _calculate_z_bias(self, sensor_heights, orb_heights, orb_scale):
+        return np.median(sensor_heights) - np.median(orb_heights * orb_scale)
+    
+    def _L2_distance_from(self, target_wp):
+        assert (isinstance(target_wp, PoseStamped)), "target_wp must be a PoseStamped"
+        return math.sqrt((self.current_pose.pose.position.x - target_wp.pose.position.x) ** 2 + \
+                         (self.current_pose.pose.position.y - target_wp.pose.position.y) ** 2 + \
+                         (self.current_pose.pose.position.z - target_wp.pose.position.z) ** 2)
+    
+    def _L2_2Ddistance_from(self, target_wp):
+        assert (isinstance(target_wp, PoseStamped)), "target_wp must be a PoseStamped"
+        return math.sqrt((self.current_pose.pose.position.x - target_wp.pose.position.x) ** 2 + \
+                         (self.current_pose.pose.position.y - target_wp.pose.position.y) ** 2)
     
 
 if __name__ == '__main__':
