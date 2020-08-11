@@ -53,10 +53,11 @@ class WaypointsMission():
         self.pub_land = rospy.Publisher('/tello/land', Empty, queue_size=1)
         self.pub_control_command = rospy.Publisher('/tello/cmd_vel', Twist, queue_size=1)
         self.pub_fast_mode = rospy.Publisher('/tello/fast_mode', Empty, queue_size=1)
-        self.pub_orb_path = None
+        self.pub_scaled_orb = rospy.Publisher('/scaled_orb_pose', PoseStamped, queue_size=1)
+        self.pub_orb_path = rospy.Publisher("/orb_path", Path, queue_size=1)
         
-        # rospy.loginfo("Waiting for /set_ref_pose from drone_controller node")
-        # rospy.wait_for_service('/set_ref_pose')
+        rospy.loginfo("Waiting for /set_ref_pose from drone_controller node")
+        rospy.wait_for_service('/set_ref_pose')
         
         self.update_target_call = rospy.ServiceProxy('/set_ref_pose', SetRefPose)
         self.move_drone_call = rospy.ServiceProxy('/move_drone_w', MoveDroneW)
@@ -78,20 +79,21 @@ class WaypointsMission():
 
     # CALLBACK FUNCTIONS
     def cb_pose(self, msg):
-        msg.header.frame_id = "map"
-        self.orb_path_msg.header = msg.header
+        msg.header.frame_id = self.frame_id
         msg.pose.position.x = msg.pose.position.x * self.scale
         msg.pose.position.y = msg.pose.position.y * self.scale
         msg.pose.position.z = msg.pose.position.z * self.scale
 
-        self.orb_path_msg.poses.append(msg)
-        
-        self.current_pose = msg
-        # update current position
-
         if self.is_scale_calibrate:
             self.current_pose.pose.position.z = msg.pose.position.z + self.z_bias
+            self.orb_path_msg.header = msg.header
+            self.orb_path_msg.poses.append(msg)
             self.pub_orb_path.publish(self.orb_path_msg)
+        
+        # update current position
+        self.current_pose = msg
+        self.pub_scaled_orb.publish(self.current_pose)
+        
 
     def cb_pos_ux(self, msg):
         self.position_control_command.linear.x = msg.data
@@ -136,37 +138,51 @@ class WaypointsMission():
         rospy.loginfo("ORB_SLAM2 map is initialized")
         rospy.loginfo("Calibrating the scale")
         N_sample = 60
-        sampling_freq = 10 #Hz
+        sampling_freq = 20 #Hz
 
         # starting point
         start_orb_height = np.empty(N_sample)
         start_sensor_height = np.empty(N_sample)
+        rospy.loginfo("Scale calibration: start sampling start height")
         for i in range(N_sample):
             start_orb_height[i] = self.current_pose.pose.position.z
             start_sensor_height[i] = self.height
-            rospy.sleep(1/sampling_freq)
+            rospy.sleep(1./sampling_freq)
 
         # moving up
+        # rospy.sleep(1)
         self.move_up(distance)
+        # rospy.sleep(0.5)
         # BUG: a lot of time the drone won't go up by the first command
-        if self.height - start_sensor_height[-1] < 0.1:
+        
+
+        if abs(self.height - start_sensor_height[-1]) < 0.5:
+            rospy.logwarn(abs(self.height - start_sensor_height[-1]))
+            # rospy.sleep(0.5)
             rospy.logwarn("The move_up command did not work. Move up again")
+            # rospy.sleep(1)
             self.move_up(distance)
+            # rospy.sleep(0.5)
+
+        rospy.loginfo("Scale calibration: start sampling up height")
         up_orb_height = np.empty(N_sample)
         up_sensor_height = np.empty(N_sample)
         for i in range(N_sample):
             up_orb_height[i] = self.current_pose.pose.position.z
             up_sensor_height[i] = self.height
-            rospy.sleep(1/sampling_freq)   
+            rospy.sleep(1./sampling_freq)   
 
         # moving down
+        # rospy.sleep(1)
         self.move_down(distance)
+        # rospy.sleep(0.5)
+        rospy.loginfo("Scale calibration: start sampling down height")
         down_orb_height = np.empty(N_sample)
         down_sensor_height = np.empty(N_sample)
         for i in range(N_sample):
             down_orb_height[i] = self.current_pose.pose.position.z
             down_sensor_height[i] = self.height
-            rospy.sleep(1/sampling_freq)
+            rospy.sleep(1./sampling_freq)
 
         try:
             scale_factor_orb_up = (np.median(up_sensor_height) - np.median(start_sensor_height)) / (np.median(up_orb_height) - np.median(start_orb_height))
@@ -176,7 +192,7 @@ class WaypointsMission():
             return -1
 
         # quality check, if not passed land
-        if scale_factor_orb_up < 0 or abs(scale_factor_orb_down / scale_factor_orb_up - 1) > 0.1:
+        if scale_factor_orb_up < 0 or abs(scale_factor_orb_down / scale_factor_orb_up - 1) > 0.17:
             rospy.logwarn("The scale calibration is bad. Landing the drone")
             rospy.logwarn("Scale ratio = {}".format(scale_factor_orb_up / scale_factor_orb_down))
             return -1
@@ -193,8 +209,11 @@ class WaypointsMission():
         # bias calculation
         self.z_bias = (z_bias_start + z_bias_up + z_bias_down) / 3
 
+        rospy.loginfo("Orb scale is {}".format(self.scale))
+        rospy.loginfo("Z bias is {}".format(self.z_bias))
+
         # initialize the orb path publisher, only for visualization in RVIZ
-        self.pub_orb_path = rospy.Publisher("/orb_path", Path, queue_size=1)
+        # self.pub_orb_path = rospy.Publisher("/orb_path", Path, queue_size=1)
 
         return 0
     
@@ -224,7 +243,7 @@ class WaypointsMission():
         
         while not rospy.is_shutdown():
             self.pub_control_command.publish(self.position_control_command)
-            if (self.is_next_target_wp_reached()):
+            if (self.is_next_target_wp_reached(th=0.10)):
                 if self.is_mission_finished():
                     return
                 self.update_idx_wp()
@@ -301,12 +320,12 @@ class WaypointsMission():
     
     def initialize_wps(self):
         self.add_wp(0, 1, 1, 0)
-        self.add_wp(1, 1, 1, math.pi / 2)
-        self.add_wp(1, 0, 1, math.pi)
+        self.add_wp(1, 1, 1, 0)
+        self.add_wp(1, 0, 1, 0)
 
     def run(self):
         self.initialize_wps()
-        self.take_off()
+        # self.take_off()
         self.start_mission()
         self.return_home()
         self.land()
@@ -341,11 +360,12 @@ if __name__ == '__main__':
     try:
         auto_racer = WaypointsMission()
         auto_racer.take_off()
-        scale_status = auto_racer.calibrate_scale()
-        rospy.loginfo(auto_racer.scale)        
+        scale_status = auto_racer.calibrate_scale()       
         
         if scale_status == -1:
             auto_racer.land()
+        else:     
+            auto_racer.run()
 
         rospy.spin()
         
