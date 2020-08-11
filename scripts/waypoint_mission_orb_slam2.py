@@ -5,6 +5,7 @@ import numpy as np
 import rospy
 import copy
 import tf
+from waypoint_interpolation import WaypointInterpolation
 
 # MESSAGES
 from std_msgs.msg import Empty, Float64, Header
@@ -41,7 +42,7 @@ class WaypointsMission():
         self.position_control_command = Twist()
         self.vision_control_command = Twist()
         self.zero_control_command = Twist()
-        self.path_msg = Path()
+        self.orb_path_msg = Path()
         
         self.scale = 1
         self.is_scale_calibrate = False
@@ -78,19 +79,19 @@ class WaypointsMission():
     # CALLBACK FUNCTIONS
     def cb_pose(self, msg):
         msg.header.frame_id = "map"
-        self.path_msg.header = msg.header
+        self.orb_path_msg.header = msg.header
         msg.pose.position.x = msg.pose.position.x * self.scale
         msg.pose.position.y = msg.pose.position.y * self.scale
         msg.pose.position.z = msg.pose.position.z * self.scale
 
-        self.path_msg.poses.append(msg)
+        self.orb_path_msg.poses.append(msg)
         
         self.current_pose = msg
         # update current position
 
         if self.is_scale_calibrate:
             self.current_pose.pose.position.z = msg.pose.position.z + self.z_bias
-            self.pub_orb_path.publish(self.path_msg)
+            self.pub_orb_path.publish(self.orb_path_msg)
 
     def cb_pos_ux(self, msg):
         self.position_control_command.linear.x = msg.data
@@ -106,7 +107,8 @@ class WaypointsMission():
 
     def cb_tello_status(self, msg):
         self.height = msg.height_m
-
+        
+    # HELPER FUNCTIONS
     def add_wp(self, x, y, z, yaw):
         q_temp = tf.transformations.quaternion_from_euler(0, 0, yaw).tolist()
         wp = PoseStamped(Header(stamp=rospy.Time.now(), frame_id=self.frame_id),
@@ -189,7 +191,7 @@ class WaypointsMission():
         z_bias_down = self._calculate_z_bias(down_sensor_height, down_orb_height, self.scale)
 
         # bias calculation
-        self.z_bias = np.median(np.array([z_bias_start, z_bias_up, z_bias_down]))
+        self.z_bias = (z_bias_start + z_bias_up + z_bias_down) / 3
 
         # initialize the orb path publisher, only for visualization in RVIZ
         self.pub_orb_path = rospy.Publisher("/orb_path", Path, queue_size=1)
@@ -297,11 +299,19 @@ class WaypointsMission():
         except rospy.ServiceException as e:
             rospy.logerr("Service call failed: %s"%e)
     
+    def initialize_wps(self):
+        self.add_wp(0, 1, 1, 0)
+        self.add_wp(1, 1, 1, math.pi / 2)
+        self.add_wp(1, 0, 1, math.pi)
+
     def run(self):
+        self.initialize_wps()
         self.take_off()
         self.start_mission()
         self.return_home()
         self.land()
+
+    # INTERNAL_FUNCTION
     
     def _get_rpy(self, wp):
         '''

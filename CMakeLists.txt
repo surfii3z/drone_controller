@@ -183,6 +183,7 @@ catkin_install_python(PROGRAMS
   scripts/vision_based_mission.py
   scripts/controller.py
   scripts/waypoint_mission.py
+  scripts/waypoint_interpolation.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
