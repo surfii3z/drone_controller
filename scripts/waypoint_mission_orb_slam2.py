@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 
-import rospy
-import sys
 import math
 import numpy as np
+import rospy
 
 # MESSAGES
-from std_msgs.msg import Empty, Float64, UInt8
-from geometry_msgs.msg import PoseStamped, Pose, Point, Twist
+from std_msgs.msg import Empty, Float64
+from geometry_msgs.msg import PoseStamped, Point, Twist
 from sensor_msgs.msg import Image
 from nav_msgs.msg import Path
 
@@ -19,6 +18,9 @@ from tello_driver.srv import MoveUp, MoveDown
 from drone_controller.srv import SetRefPose, MoveDroneW
 
 ROS_RATE = 30   # 30 Hz
+
+def shutdown_handler():
+    rospy.loginfo("Shut down")
 
 class WayPoint():
     def __init__(self, x, y, z, yaw):
@@ -47,9 +49,11 @@ class WaypointsMission():
         self.vision_control_command = Twist()
         self.zero_control_command = Twist()
         self.path_msg = Path()
+        
         self.scale = 1
         self.is_scale_calibrate = False
-        
+        self.z_bias = 0  # ORB_SLAM2 is initialized during the take-off, so z=0 is not ground
+
         # PUBLISHER
         self.pub_take_off = rospy.Publisher('/tello/takeoff', Empty, queue_size=1)
         self.pub_land = rospy.Publisher('/tello/land', Empty, queue_size=1)
@@ -121,64 +125,88 @@ class WaypointsMission():
     def cb_tello_status(self, msg):
         self.height = msg.height_m
 
-    def calibrate_scale(self):
+    def calibrate_scale(self, N_sample=60, sampling_freq=10, distance=80):
+        '''
+            parameters:
+                N_sample: number of sample at each height
+                sampling_freq: frequency of the sampling
+                distance: distance (cm) to go up and down
+
+            function: it calculates scale of monocular orb_slam and height bias
+
+            type: float
+        '''
         rospy.loginfo("Waiting for ORB_SLAM2 to initialize the map")
         rospy.wait_for_message('/orb_pose', PoseStamped)
         rospy.loginfo("ORB_SLAM2 map is initialized")
         rospy.loginfo("Calibrating the scale")
-        N = 30
+        N_sample = 60
+        sampling_freq = 10 #Hz
 
         # starting point
-        start_orb_height = np.empty(N)
-        start_sensor_height = np.empty(N)
-        for i in range(N):
+        start_orb_height = np.empty(N_sample)
+        start_sensor_height = np.empty(N_sample)
+        for i in range(N_sample):
             start_orb_height[i] = self.current_position.z
             start_sensor_height[i] = self.height
-            rospy.sleep(0.1)
+            rospy.sleep(1/sampling_freq)
 
         # moving up
-        self.move_up(80)
+        self.move_up(distance)
         # BUG: a lot of time the drone won't go up by the first command
         if self.height - start_sensor_height[-1] < 0.1:
             rospy.logwarn("The move_up command did not work. Move up again")
-            self.move_up(80)
-        up_orb_height = np.empty(N)
-        up_sensor_height = np.empty(N)
-        for i in range(N):
+            self.move_up(distance)
+        up_orb_height = np.empty(N_sample)
+        up_sensor_height = np.empty(N_sample)
+        for i in range(N_sample):
             up_orb_height[i] = self.current_position.z
             up_sensor_height[i] = self.height
-            rospy.sleep(0.1)   
+            rospy.sleep(1/sampling_freq)   
 
         # moving down
-        self.move_down(80)
-        down_orb_height = np.empty(N)
-        down_sensor_height = np.empty(N)
-        for i in range(N):
+        self.move_down(distance)
+        down_orb_height = np.empty(N_sample)
+        down_sensor_height = np.empty(N_sample)
+        for i in range(N_sample):
             down_orb_height[i] = self.current_position.z
             down_sensor_height[i] = self.height
-            rospy.sleep(0.1)
+            rospy.sleep(1/sampling_freq)
 
         try:
             scale_factor_orb_up = (np.median(up_sensor_height) - np.median(start_sensor_height)) / (np.median(up_orb_height) - np.median(start_orb_height))
             scale_factor_orb_down = (np.median(up_sensor_height) - np.median(down_sensor_height)) / (np.median(up_orb_height) - np.median(down_orb_height))
         except ZeroDivisionError:
-            rospy.logerr("calibrate scale: zero division")
+            rospy.logwarn("Scale Calibration error: zero division")
             return -1
 
+        # quality check, if not passed land
         if scale_factor_orb_up < 0 or abs(scale_factor_orb_down / scale_factor_orb_up - 1) > 0.1:
             rospy.logwarn("The scale calibration is bad. Landing the drone")
-            rospy.logwarn("scale ratio = {}".format(scale_factor_orb_up / scale_factor_orb_down))
-            
+            rospy.logwarn("Scale ratio = {}".format(scale_factor_orb_up / scale_factor_orb_down))
             return -1
 
+        # SCALE calculation
         self.scale = 0.5 * (scale_factor_orb_up + scale_factor_orb_down)
         self.is_scale_calibrate = True
-        self.pub_orb_path = rospy.Publisher("/orb_path", Path, queue_size=1)    # initialize the orb path publisher 
 
-        return scale_factor_orb_up
+
+        z_bias_start = self._calculate_z_bias(start_sensor_height, start_orb_height, self.scale)
+        z_bias_up = self._calculate_z_bias(up_sensor_height, up_orb_height, self.scale)
+        z_bias_down = self._calculate_z_bias(down_sensor_height, down_orb_height, self.scale)
+
+        # bias calculation
+        self.z_bias = np.median(np.array([z_bias_start, z_bias_up, z_bias_down]))
+
+        # initialize the orb path publisher, only for visualization in RVIZ
+        self.pub_orb_path = rospy.Publisher("/orb_path", Path, queue_size=1)
+
+        return 0
+
+    def _calculate_z_bias(self, sensor_heights, orb_heights, orb_scale):
+        return np.median(sensor_heights) - np.median(orb_heights * orb_scale)
     
-
-
+    
     def move_up(self, cm):
         try:
             rospy.loginfo("Start to move up %d cm" % cm)
@@ -249,6 +277,7 @@ class WaypointsMission():
         land_msg = Empty()
         self.pub_land.publish(land_msg)
         rospy.loginfo("Landing: Finish")
+        rospy.on_shutdown(shutdown_handler)
 
     def set_waypoint(self, wp):
         try:
@@ -272,15 +301,16 @@ class WaypointsMission():
             return res
         except rospy.ServiceException as e:
             rospy.logerr("Service call failed: %s"%e)
+    
 
 if __name__ == '__main__':
     try:
         auto_racer = WaypointsMission()
         auto_racer.take_off()
-        scale = auto_racer.calibrate_scale()
-        rospy.loginfo(scale)        
+        scale_status = auto_racer.calibrate_scale()
+        rospy.loginfo(auto_racer.scale)        
         
-        if scale == -1:
+        if scale_status == -1:
             auto_racer.land()
 
         rospy.spin()
