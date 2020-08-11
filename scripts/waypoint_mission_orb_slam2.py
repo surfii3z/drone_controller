@@ -80,12 +80,14 @@ class WaypointsMission():
     # CALLBACK FUNCTIONS
     def cb_pose(self, msg):
         msg.header.frame_id = self.frame_id
-        msg.pose.position.x = msg.pose.position.x * self.scale
-        msg.pose.position.y = msg.pose.position.y * self.scale
-        msg.pose.position.z = msg.pose.position.z * self.scale
+        msg.pose.position.x = msg.pose.position.x
+        msg.pose.position.y = msg.pose.position.y
+        msg.pose.position.z = msg.pose.position.z
 
         if self.is_scale_calibrate:
-            self.current_pose.pose.position.z = msg.pose.position.z + self.z_bias
+            msg.pose.position.x = msg.pose.position.x * self.scale
+            msg.pose.position.y = msg.pose.position.y * self.scale
+            msg.pose.position.z = msg.pose.position.z * self.scale + self.z_bias
             self.orb_path_msg.header = msg.header
             self.orb_path_msg.poses.append(msg)
             self.pub_orb_path.publish(self.orb_path_msg)
