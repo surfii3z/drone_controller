@@ -140,6 +140,7 @@ class WaypointsMission():
         self.move_up(80)
         # BUG: a lot of time the drone won't go up by the first command
         if self.height - start_sensor_height[-1] < 0.1:
+            rospy.logwarn("The move_up command did not work. Move up again")
             self.move_up(80)
         up_orb_height = np.empty(N)
         up_sensor_height = np.empty(N)
