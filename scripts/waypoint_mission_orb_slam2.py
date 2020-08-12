@@ -140,7 +140,7 @@ class WaypointsMission():
         rospy.loginfo("ORB_SLAM2 map is initialized")
         rospy.loginfo("Calibrating the scale")
         N_sample = 60
-        sampling_freq = 20 #Hz
+        sampling_freq = 10.0 #Hz
 
         # starting point
         start_orb_height = np.empty(N_sample)
@@ -194,7 +194,7 @@ class WaypointsMission():
             return -1
 
         # quality check, if not passed land
-        if scale_factor_orb_up < 0 or abs(scale_factor_orb_down / scale_factor_orb_up - 1) > 0.17:
+        if scale_factor_orb_up < 0 or abs(scale_factor_orb_down / scale_factor_orb_up - 1) > 0.1:
             rospy.logwarn("The scale calibration is bad. Landing the drone")
             rospy.logwarn("Scale ratio = {}".format(scale_factor_orb_up / scale_factor_orb_down))
             return -1
@@ -366,8 +366,9 @@ if __name__ == '__main__':
         
         if scale_status == -1:
             auto_racer.land()
-        else:     
-            auto_racer.run()
+        # else:     
+            # auto_racer.run()
+            # pass
 
         rospy.spin()
         
