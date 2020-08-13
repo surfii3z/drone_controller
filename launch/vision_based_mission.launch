@@ -1,10 +1,10 @@
 <launch>
     <node name="controller" pkg="pid" type="controller" ns="pid_ximg">
-      <param name="Kp" value="-3.0" />
+      <param name="Kp" value="-2.0" />
       <param name="Ki" value="0" />
-      <param name="Kd" value="-1.8" />
-      <param name="upper_limit" value="1.30" />
-      <param name="lower_limit" value="-1.30" />
+      <param name="Kd" value="-1.5" />
+      <param name="upper_limit" value="2.00" />
+      <param name="lower_limit" value="-2.00" />
       <param name="windup_limit" value="0.4" />
       <param name="max_loop_frequency" value="100.0" />
       <param name="min_loop_frequency" value="100.0" />
@@ -13,11 +13,11 @@
      </node>
 
      <node name="controller" pkg="pid" type="controller" ns="pid_yimg">
-      <param name="Kp" value="-3.0" />
+      <param name="Kp" value="-2.0" />
       <param name="Ki" value="0" />
-      <param name="Kd" value="-1.8" />
-      <param name="upper_limit" value="1.30" />
-      <param name="lower_limit" value="-1.30" />
+      <param name="Kd" value="-1.5" />
+      <param name="upper_limit" value="2.00" />
+      <param name="lower_limit" value="-2.00" />
       <param name="windup_limit" value="0.4" />
       <param name="max_loop_frequency" value="100.0" />
       <param name="min_loop_frequency" value="100.0" />
@@ -25,10 +25,13 @@
       <remap from="setpoint" to="/pid_zero_setpoint" />
     </node>
 
+    <node name="vision_based_controller_mission" pkg="drone_controller" type="vision_based_mission.py" output="screen">
+      <remap from="/err_x_img"   to="/pid_ximg/state"/>
+      <remap from="/err_y_img"   to="/pid_yimg/state"/>
+    </node>
 
-
-    <!-- <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot"
+    <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot" ns="vision_based_controller"
     args="/pid_ximg/control_effort
-          /pid_yimg/control_effort" /> -->
+          /pid_yimg/control_effort" />
 
 </launch>

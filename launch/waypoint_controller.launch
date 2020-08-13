@@ -22,10 +22,10 @@
           /pid_yaw/state 
           /pid_thrust/state" /> -->
 
-    <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot"
+    <!-- <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot" ns="waypoint_controller"
     args="/pid_thrust/control_effort
           /pid_roll/control_effort
           /pid_pitch/control_effort
-          /pid_yaw/control_effort" />
+          /pid_yaw/control_effort" /> -->
     
 </launch>

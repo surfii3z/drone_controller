@@ -1,0 +1,26 @@
+<launch>
+    <!-- darknet YOLOv4 -->
+    <include file="$(find darknet_ros)/launch/tello_gate_yolo_v4.launch" />
+
+    <!-- controller -->
+    <include file="$(find drone_controller)/launch/waypoint_controller.launch" />
+    <include file="$(find drone_controller)/launch/vision_based_controller.launch" />
+
+    <!-- connect to tello -->
+    <include file="$(find tello_driver)/launch/tello_node_wo_image.launch" />
+
+    <!-- connect to joy -->
+    <include file="$(find tello_driver)/launch/joy_teleop.launch" />
+    
+    <!-- optitrack  -->
+    <include file="$(find vrpn_client_ros)/launch/usrg_optitrack_lan.launch"/>
+
+    <!-- demo mission node -->
+    <node name="demo" pkg="drone_controller" type="demo.py" output="screen">
+        <remap from="/err_x_img"   to="/pid_ximg/state"/>
+        <remap from="/err_y_img"   to="/pid_yimg/state"/>
+    </node>
+
+
+ 
+</launch>

@@ -5,7 +5,7 @@ import numpy as np
 import rospy
 import copy
 import tf
-from waypoint_interpolation import WaypointInterpolation
+from waypoint_interpolation import path_generator
 
 # MESSAGES
 from std_msgs.msg import Empty, Float64, Header
@@ -25,6 +25,17 @@ ROS_RATE = 30   # 30 Hz
 def shutdown_handler():
     rospy.loginfo("Shut down")
 
+def deg_to_rad(deg):
+    deg = normalize_yaw(deg)
+    return deg * math.pi / 180
+
+def normalize_yaw(deg):
+    while(deg > 180):
+        deg -= 2 * 180
+    while(deg < -180):
+        deg += 2 * 180
+    return deg
+
 class BBox():
     def __init__(self, bbox_msg):
         self.width = bbox_msg.xmax - bbox_msg.xmin
@@ -37,7 +48,7 @@ class BBox():
     def get_bbox_area(self):
         return self.width * self.height
 
-class WaypointsMission():
+class AutoRacer():
     def __init__(self):
         rospy.init_node("waypoint_mission", anonymous=True)
         self.rate = rospy.Rate(ROS_RATE)
@@ -63,7 +74,7 @@ class WaypointsMission():
         self.position_control_command = Twist()
         self.vision_control_command = Twist()
         self.zero_control_command = Twist()
-        self.orb_path_msg = Path()
+        # self.optitrack_path_msg = Path()
 
 
         # PUBLISHER
@@ -71,7 +82,7 @@ class WaypointsMission():
         self.pub_land = rospy.Publisher('/tello/land', Empty, queue_size=1)
         self.pub_control_command = rospy.Publisher('/tello/cmd_vel', Twist, queue_size=1)
         self.pub_fast_mode = rospy.Publisher('/tello/fast_mode', Empty, queue_size=1)
-        self.pub_path = rospy.Publisher("/drone_path", Path, queue_size=1)
+        # self.pub_path = rospy.Publisher("/drone_path", Path, queue_size=1)
         self.pub_err_x_img = rospy.Publisher("/err_x_img", Float64, queue_size=1)
         self.pub_err_y_img = rospy.Publisher("/err_y_img", Float64, queue_size=1)
         
@@ -84,15 +95,11 @@ class WaypointsMission():
         self.srv_cli_down = rospy.ServiceProxy('/tello/down', MoveDown)
 
         # SUBSCRIBER
-        rospy.logwarn("Waiting for /mocap_node/Robot_4/pose message from Optitrack")
-        rospy.wait_for_message('/mocap_node/Robot_4/pose', PoseStamped)
-        rospy.loginfo("/mocap_node/Robot_4/pose message received")
-
-        rospy.logwarn("Waiting for ORB_SLAM2 to get image from tello")
-        rospy.wait_for_message('/tello/image_repub', Image)
-        rospy.loginfo("image from tello received")
+        rospy.logwarn("Waiting for /vrpn_client_node/Tello_jed/pose message from Optitrack")
+        rospy.wait_for_message('/vrpn_client_node/Tello_jed/pose', PoseStamped)
+        rospy.loginfo("/vrpn_client_node/Tello_jed/posepose message received")
         
-        self.sub_pose = rospy.Subscriber('/mocap_node/Robot_4/pose', PoseStamped, self.cb_pose)
+        self.sub_pose = rospy.Subscriber('/vrpn_client_node/Tello_jed/pose', PoseStamped, self.cb_pose)
         self.sub_pos_ux = rospy.Subscriber('/pid_roll/control_effort', Float64, self.cb_pos_ux)
         self.sub_pos_uy = rospy.Subscriber('/pid_pitch/control_effort', Float64, self.cb_pos_uy)
         self.sub_pos_uz = rospy.Subscriber('/pid_thrust/control_effort', Float64, self.cb_pos_uz)
@@ -109,11 +116,12 @@ class WaypointsMission():
 
     # CALLBACK FUNCTIONS
     def cb_pose(self, msg):
-        msg.header.frame_id = self.frame_id
+        if self.frame_id != "world":
+            msg.header.frame_id = self.frame_id
 
-        self.orb_path_msg.header = msg.header
-        self.orb_path_msg.poses.append(msg)
-        self.pub_path.publish(self.orb_path_msg)
+        # self.optitrack_path_msg.header = msg.header
+        # self.optitrack_path_msg.poses.append(msg)
+        # self.pub_path.publish(self.optitrack_path_msg)
         
         # update current position
         self.current_pose = msg
@@ -132,8 +140,16 @@ class WaypointsMission():
             max_idx = area.index(max(area))
             self.cur_target_bbox = BBox(msg.bounding_boxes[max_idx])
 
-        err_gate_x = Float64((self.cur_target_bbox.cx - self.detected_img_width  / 2.0) / self.detected_img_width)
-        err_gate_y = Float64(-(self.cur_target_bbox.cy - (self.detected_img_height - 200) / 2.0) / self.detected_img_height)
+        temp_err_x = (self.cur_target_bbox.cx - self.detected_img_width  / 2.0) / self.detected_img_width
+        temp_err_y = -(self.cur_target_bbox.cy - (self.detected_img_height - 200) / 2.0) / self.detected_img_height
+
+        if abs(temp_err_x) < 0.1:
+            temp_err_x = 0
+        if abs(temp_err_y) < 0.1:
+            temp_err_y = 0
+
+        err_gate_x = Float64(temp_err_x)
+        err_gate_y = Float64(temp_err_y)
 
         self.pub_err_x_img.publish(err_gate_x)
         self.pub_err_y_img.publish(err_gate_y)
@@ -208,21 +224,22 @@ class WaypointsMission():
             else:
                 self.vision_control_command.linear.y = self.position_control_command.linear.y
                 self.pub_control_command.publish(self.vision_control_command)
-            if (self.is_next_target_wp_reached(th=0.15)):
-                if self.is_mission_finished():
-                    return
+
+            if (self.is_next_target_wp_reached(th=0.70)):
+                # if self.is_mission_finished():
+                    # return
                 self.update_idx_wp()
                 self.set_waypoint(self.wps[self.idx_wp])
             self.rate.sleep()
 
     def update_idx_wp(self):
-        self.idx_wp = self.idx_wp + 1
+        self.idx_wp = (self.idx_wp + 1) % (len(self.wps))
         rospy.loginfo("Update next waypoint index to %d" % self.idx_wp)
 
     def is_next_target_wp_reached(self, th=0.30):
-        return self._L2_distance_from(self.wps[self.idx_wp]) < th
+        return self._L2_2Ddistance_from(self.wps[self.idx_wp]) < th
     
-    def is_home_reached(self, th=0.10):
+    def is_home_reached(self, th=0.30):
         return self._L2_2Ddistance_from(self.home_wp) < th
     
     def is_mission_finished(self):
@@ -269,6 +286,7 @@ class WaypointsMission():
         while not rospy.is_shutdown():
             self.pub_control_command.publish(self.position_control_command)
             if (self.is_home_reached()):
+                rospy.loginfo("Mission finished: Home Reached")
                 return
             self.rate.sleep()
     
@@ -284,9 +302,25 @@ class WaypointsMission():
             rospy.logerr("Service call failed: %s"%e)
     
     def initialize_wps(self):
-        self.add_wp(0, 1, 1, 0)
-        self.add_wp(1, 1, 1, 0)
-        self.add_wp(1, 0, 1, 0)
+        # start
+        self.add_wp(-1.70, -0.60, 0.51, deg_to_rad(-90))
+
+        # gate 1
+        self.add_wp(1.00 - 0.20, -0.60, 0.70, deg_to_rad(-90))
+        self.add_wp(1.00 + 0.20, -0.60, 0.70, deg_to_rad(-90))
+
+        # U-turn after gate1
+        self.add_wp(2.12, 0.13, 0.51, deg_to_rad(0))
+        self.add_wp(1.93, 0.94, 0.51, deg_to_rad(90))
+
+        # gate 2
+        self.add_wp(-0.90 + 0.20, 0.72, 0.52, deg_to_rad(90))
+        self.add_wp(-0.90 - 0.20, 0.72, 0.52, deg_to_rad(90))
+
+        # U-turn after gate2
+        self.add_wp(-2.30, 0.06, 0.52, deg_to_rad(180))
+
+        
 
     def run(self):
         self.initialize_wps()
@@ -323,7 +357,7 @@ class WaypointsMission():
 
 if __name__ == '__main__':
     try:
-        auto_racer = WaypointsMission()
+        auto_racer = AutoRacer()
 
         auto_racer.run()
 

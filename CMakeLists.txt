@@ -184,6 +184,7 @@ catkin_install_python(PROGRAMS
   scripts/controller.py
   scripts/waypoint_mission.py
   scripts/waypoint_interpolation.py
+  scripts/demo.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
