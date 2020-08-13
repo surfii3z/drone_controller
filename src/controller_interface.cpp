@@ -136,7 +136,8 @@ int main(int argc, char **argv)
     ros::Publisher zero_setpoint_pub = ctrl_interface_node.advertise<std_msgs::Float64>("/pid_zero_setpoint", 1);
 
     // Subscribe to position reference
-    ros::Subscriber state_w_sub = ctrl_interface_node.subscribe("/scaled_orb_pose", 1, stateCallback);
+    // ros::Subscriber state_w_sub = ctrl_interface_node.subscribe("/scaled_orb_pose", 1, stateCallback);
+    ros::Subscriber state_w_sub = ctrl_interface_node.subscribe("/mocap_node/Robot_4/pose", 1, stateCallback);
 
     // Advertise service to update position reference
     ros::ServiceServer set_ref_pose_srv = ctrl_interface_node.advertiseService("/set_ref_pose", set_ref_pose);
