@@ -38,15 +38,16 @@ def normalize_yaw(deg):
 
 class BBox():
     def __init__(self, bbox_msg):
-        self.width = bbox_msg.xmax - bbox_msg.xmin
-        self.height = bbox_msg.ymax - bbox_msg.ymin
+        self.bbox_width = bbox_msg.xmax - bbox_msg.xmin
+        self.bbox_height = bbox_msg.ymax - bbox_msg.ymin
         self.cx = (bbox_msg.xmax + bbox_msg.xmin) / 2.0
         self.cy = (bbox_msg.ymax + bbox_msg.ymin) / 2.0
-        self.cls = bbox_msg.Class
+        self.h_to_w_ratio = self.bbox_width / self.bbox_height
+        self.object_class = bbox_msg.Class
         self.prob = bbox_msg.probability
 
     def get_bbox_area(self):
-        return self.width * self.height
+        return self.bbox_width * self.bbox_height
 
 class AutoRacer():
     def __init__(self):
@@ -140,13 +141,20 @@ class AutoRacer():
             max_idx = area.index(max(area))
             self.cur_target_bbox = BBox(msg.bounding_boxes[max_idx])
 
-        temp_err_x = (self.cur_target_bbox.cx - self.detected_img_width  / 2.0) / self.detected_img_width
+    
+        temp_err_x = (self.cur_target_bbox.cx - self.detected_img_width  / 2.0) / self.detected_img_width 
         temp_err_y = -(self.cur_target_bbox.cy - (self.detected_img_height - 200) / 2.0) / self.detected_img_height
 
-        if abs(temp_err_x) < 0.1:
-            temp_err_x = 0
-        if abs(temp_err_y) < 0.1:
-            temp_err_y = 0
+        # temp_err_x = (self.cur_target_bbox.cx - self.detected_img_width  / 2.0) / self.cur_target_bbox.bbox_width 
+        # temp_err_y = -(self.cur_target_bbox.cy - (self.detected_img_height - 200) / 2.0) / self.cur_target_bbox.bbox_width 
+
+        rospy.loginfo("temp_err_x = {}".format(temp_err_x))
+        rospy.loginfo("temp_err_y = {}".format(temp_err_y))
+
+        # if abs(temp_err_x) < 0.1:
+        #     temp_err_x = 0
+        # if abs(temp_err_y) < 0.1:
+        #     temp_err_y = 0
 
         err_gate_x = Float64(temp_err_x)
         err_gate_y = Float64(temp_err_y)
@@ -220,6 +228,7 @@ class AutoRacer():
         
         while not rospy.is_shutdown():
             if self.object_count == 0:
+                self.vision_control_command = Twist()
                 self.pub_control_command.publish(self.position_control_command)
             else:
                 self.vision_control_command.linear.y = self.position_control_command.linear.y
@@ -311,14 +320,15 @@ class AutoRacer():
 
         # U-turn after gate1
         self.add_wp(2.12, 0.13, 0.51, deg_to_rad(0))
-        self.add_wp(1.93, 0.94, 0.51, deg_to_rad(90))
+        self.add_wp(1.93, 0.80, 0.51, deg_to_rad(50))
 
         # gate 2
-        self.add_wp(-0.90 + 0.20, 0.72, 0.52, deg_to_rad(90))
-        self.add_wp(-0.90 - 0.20, 0.72, 0.52, deg_to_rad(90))
+        self.add_wp(-0.80 + 0.20, 0.72, 0.52, deg_to_rad(90))
+        self.add_wp(-0.80 - 0.20, 0.72, 0.52, deg_to_rad(90))
 
         # U-turn after gate2
-        self.add_wp(-2.30, 0.06, 0.52, deg_to_rad(180))
+        self.add_wp(-2.30, 0.06, 0.52, deg_to_rad(130))
+        self.add_wp(-2.00, -0.60, 0.52, deg_to_rad(180))
 
         
 

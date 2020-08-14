@@ -1,10 +1,10 @@
 <launch>
     <node name="controller" pkg="pid" type="controller" ns="pid_ximg">
-      <param name="Kp" value="-3.0" />
-      <param name="Ki" value="0" />
-      <param name="Kd" value="-1.8" />
-      <param name="upper_limit" value="1.30" />
-      <param name="lower_limit" value="-1.30" />
+      <param name="Kp" value="-4.0" />
+      <param name="Ki" value="-0.3" />
+      <param name="Kd" value="-2.3" />
+      <param name="upper_limit" value="2.0" />
+      <param name="lower_limit" value="-2.0" />
       <param name="windup_limit" value="0.4" />
       <param name="max_loop_frequency" value="100.0" />
       <param name="min_loop_frequency" value="100.0" />
@@ -13,11 +13,11 @@
      </node>
 
      <node name="controller" pkg="pid" type="controller" ns="pid_yimg">
-      <param name="Kp" value="-3.0" />
-      <param name="Ki" value="0" />
-      <param name="Kd" value="-1.8" />
-      <param name="upper_limit" value="1.30" />
-      <param name="lower_limit" value="-1.30" />
+      <param name="Kp" value="-3.5" />
+      <param name="Ki" value="-0.3" />
+      <param name="Kd" value="-2.3" />
+      <param name="upper_limit" value="1.50" />
+      <param name="lower_limit" value="-1.50" />
       <param name="windup_limit" value="0.4" />
       <param name="max_loop_frequency" value="100.0" />
       <param name="min_loop_frequency" value="100.0" />
@@ -27,8 +27,10 @@
 
 
 
-    <!-- <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot"
+    <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot"
     args="/pid_ximg/control_effort
-          /pid_yimg/control_effort" /> -->
+          /pid_ximg/state
+          /pid_yimg/control_effort
+          /pid_yimg/state" />
 
 </launch>
