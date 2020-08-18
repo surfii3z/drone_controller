@@ -334,6 +334,7 @@ class AutoRacer():
         # U-turn after gate2
         self.add_wp(-2.30, 0.06, 0.52, deg_to_rad(130))
         self.add_wp(-2.00, -0.60, 0.52, deg_to_rad(180))
+        
 
         self.wps = path_generator(self.wps, 0.08).poses
 
