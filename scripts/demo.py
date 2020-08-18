@@ -20,7 +20,7 @@ from darknet_ros_msgs.msg import BoundingBoxes, ObjectCount
 # SERVICES
 from drone_controller.srv import SetRefPose, MoveDroneW
 
-ROS_RATE = 20   # 30 Hz
+ROS_RATE = 30   # Hz
 
 def shutdown_handler():
     rospy.loginfo("Shut down")
@@ -151,10 +151,10 @@ class AutoRacer():
         # rospy.loginfo("temp_err_x = {}".format(temp_err_x))
         # rospy.loginfo("temp_err_y = {}".format(temp_err_y))
 
-        # if abs(temp_err_x) < 0.1:
-        #     temp_err_x = 0
-        # if abs(temp_err_y) < 0.1:
-        #     temp_err_y = 0
+        if abs(temp_err_x) < 0.025:
+            temp_err_x = 0
+        if abs(temp_err_y) < 0.025:
+            temp_err_y = 0
 
         err_gate_x = Float64(temp_err_x)
         err_gate_y = Float64(temp_err_y)
@@ -174,12 +174,14 @@ class AutoRacer():
         self.position_control_command.linear.x = msg.data
 
     def cb_pos_uy(self, msg):
+        self.vision_control_command.linear.y = msg.data
         self.position_control_command.linear.y = msg.data
 
     def cb_pos_uz(self, msg):
         self.position_control_command.linear.z = msg.data
 
     def cb_pos_uyaw(self, msg):
+        self.vision_control_command.angular.y = msg.data
         self.position_control_command.angular.z = msg.data
     
     def cb_ux_img(self, msg):
@@ -227,14 +229,14 @@ class AutoRacer():
         self.set_waypoint(self.wps[self.idx_wp])
         
         while not rospy.is_shutdown():
-            # if self.object_count == 0:
-            #     self.vision_control_command = Twist()
-            #     self.pub_control_command.publish(self.position_control_command)
-            # else:
-            #     self.vision_control_command.linear.y = self.position_control_command.linear.y
-            #     self.pub_control_command.publish(self.vision_control_command)
+            if self.object_count == 0:
+                self.vision_control_command = Twist()
+                self.pub_control_command.publish(self.position_control_command)
+            else:
+                # self.vision_control_command.linear.y = self.position_control_command.linear.y
+                self.pub_control_command.publish(self.vision_control_command)
 
-            self.pub_control_command.publish(self.position_control_command)
+            # self.pub_control_command.publish(self.position_control_command)
 
             if (self.is_next_target_wp_reached(th=0.45)):
                 # if self.is_mission_finished():
