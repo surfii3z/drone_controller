@@ -16,11 +16,8 @@
     </node>
 
 
-    <!-- <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot"
-    args="/pid_roll/state 
-          /pid_pitch/state 
-          /pid_yaw/state 
-          /pid_thrust/state" /> -->
+    <!-- <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot" -->
+    <!-- args="/pid_roll/state" /> -->
 
     <!-- <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot" ns="waypoint_controller"
     args="/pid_thrust/control_effort

@@ -56,8 +56,8 @@ class WaypointsMission():
         self.pub_scaled_orb = rospy.Publisher('/scaled_orb_pose', PoseStamped, queue_size=1)
         self.pub_orb_path = rospy.Publisher("/orb_path", Path, queue_size=1)
         
-        rospy.loginfo("Waiting for /set_ref_pose from drone_controller node")
-        rospy.wait_for_service('/set_ref_pose')
+        # rospy.loginfo("Waiting for /set_ref_pose from drone_controller node")
+        # rospy.wait_for_service('/set_ref_pose')
         
         self.update_target_call = rospy.ServiceProxy('/set_ref_pose', SetRefPose)
         self.move_drone_call = rospy.ServiceProxy('/move_drone_w', MoveDroneW)
@@ -65,8 +65,8 @@ class WaypointsMission():
         self.srv_cli_down = rospy.ServiceProxy('/tello/down', MoveDown)
 
         # SUBSCRIBER
-        rospy.loginfo("Waiting for ORB_SLAM2 to get image from tello")
-        rospy.wait_for_message('/tello/image_repub', Image)
+        rospy.loginfo("Waiting for ORB_SLAM3 to get image from tello")
+        rospy.wait_for_message('/camera/color/image_raw', Image)
         self.sub_pose = rospy.Subscriber('/orb_pose', PoseStamped, self.cb_pose)
         self.sub_pos_ux = rospy.Subscriber('/pid_roll/control_effort', Float64, self.cb_pos_ux)
         self.sub_pos_uy = rospy.Subscriber('/pid_pitch/control_effort', Float64, self.cb_pos_uy)
@@ -85,9 +85,9 @@ class WaypointsMission():
             msg.pose.position.x = msg.pose.position.x * self.scale
             msg.pose.position.y = msg.pose.position.y * self.scale
             msg.pose.position.z = msg.pose.position.z * self.scale + self.z_bias
-            self.orb_path_msg.header = msg.header
-            self.orb_path_msg.poses.append(msg)
-            self.pub_orb_path.publish(self.orb_path_msg)
+            # self.orb_path_msg.header = msg.header
+            # self.orb_path_msg.poses.append(msg)
+            # self.pub_orb_path.publish(self.orb_path_msg)
         
         # update current position
         self.current_pose = msg
@@ -237,7 +237,6 @@ class WaypointsMission():
         rospy.loginfo("Prepare to start the mission")
         rospy.sleep(1)
         rospy.loginfo("Mission started")
-        # self.enter_fast_mode()
         self.set_waypoint(self.wps[self.idx_wp])
         
         while not rospy.is_shutdown():
@@ -359,12 +358,14 @@ if __name__ == '__main__':
     try:
         auto_racer = WaypointsMission()
         auto_racer.take_off()
+        rospy.loginfo("take off jaa")
         scale_status = auto_racer.calibrate_scale()       
         
         if scale_status == -1:
             auto_racer.land()
         else:     
-            auto_racer.run()
+            # auto_racer.run()
+            pass
 
         rospy.spin()
         

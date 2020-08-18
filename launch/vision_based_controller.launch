@@ -1,6 +1,6 @@
 <launch>
     <node name="controller" pkg="pid" type="controller" ns="pid_ximg">
-      <param name="Kp" value="-4.0" />
+      <param name="Kp" value="-3.0" />
       <param name="Ki" value="-0.3" />
       <param name="Kd" value="-2.3" />
       <param name="upper_limit" value="2.0" />
@@ -27,10 +27,10 @@
 
 
 
-    <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot"
+    <!-- <node name="rqt_plot" pkg="rqt_plot" type="rqt_plot"
     args="/pid_ximg/control_effort
           /pid_ximg/state
           /pid_yimg/control_effort
-          /pid_yimg/state" />
+          /pid_yimg/state" /> -->
 
 </launch>

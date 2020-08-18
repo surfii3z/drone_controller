@@ -20,7 +20,7 @@ from darknet_ros_msgs.msg import BoundingBoxes, ObjectCount
 # SERVICES
 from drone_controller.srv import SetRefPose, MoveDroneW
 
-ROS_RATE = 30   # 30 Hz
+ROS_RATE = 20   # 30 Hz
 
 def shutdown_handler():
     rospy.loginfo("Shut down")
@@ -146,10 +146,10 @@ class AutoRacer():
         temp_err_y = -(self.cur_target_bbox.cy - (self.detected_img_height - 200) / 2.0) / self.detected_img_height
 
         # temp_err_x = (self.cur_target_bbox.cx - self.detected_img_width  / 2.0) / self.cur_target_bbox.bbox_width 
-        # temp_err_y = -(self.cur_target_bbox.cy - (self.detected_img_height - 200) / 2.0) / self.cur_target_bbox.bbox_width 
+        # temp_err_y = -(self.cur_target_bbox.cy - (self.detected_img_height - 100) / 2.0) / self.cur_target_bbox.bbox_width 
 
-        rospy.loginfo("temp_err_x = {}".format(temp_err_x))
-        rospy.loginfo("temp_err_y = {}".format(temp_err_y))
+        # rospy.loginfo("temp_err_x = {}".format(temp_err_x))
+        # rospy.loginfo("temp_err_y = {}".format(temp_err_y))
 
         # if abs(temp_err_x) < 0.1:
         #     temp_err_x = 0
@@ -227,14 +227,16 @@ class AutoRacer():
         self.set_waypoint(self.wps[self.idx_wp])
         
         while not rospy.is_shutdown():
-            if self.object_count == 0:
-                self.vision_control_command = Twist()
-                self.pub_control_command.publish(self.position_control_command)
-            else:
-                self.vision_control_command.linear.y = self.position_control_command.linear.y
-                self.pub_control_command.publish(self.vision_control_command)
+            # if self.object_count == 0:
+            #     self.vision_control_command = Twist()
+            #     self.pub_control_command.publish(self.position_control_command)
+            # else:
+            #     self.vision_control_command.linear.y = self.position_control_command.linear.y
+            #     self.pub_control_command.publish(self.vision_control_command)
 
-            if (self.is_next_target_wp_reached(th=0.70)):
+            self.pub_control_command.publish(self.position_control_command)
+
+            if (self.is_next_target_wp_reached(th=0.45)):
                 # if self.is_mission_finished():
                     # return
                 self.update_idx_wp()
@@ -315,20 +317,23 @@ class AutoRacer():
         self.add_wp(-1.70, -0.60, 0.51, deg_to_rad(-90))
 
         # gate 1
-        self.add_wp(1.00 - 0.20, -0.60, 0.70, deg_to_rad(-90))
-        self.add_wp(1.00 + 0.20, -0.60, 0.70, deg_to_rad(-90))
+        self.add_wp(1.33 - 0.30, -0.7, 0.60, deg_to_rad(-90))
+        self.add_wp(1.33 + 0.60, -0.7, 0.60, deg_to_rad(-90))
 
         # U-turn after gate1
-        self.add_wp(2.12, 0.13, 0.51, deg_to_rad(0))
-        self.add_wp(1.93, 0.80, 0.51, deg_to_rad(50))
+        self.add_wp(2.12, 0.00, 0.51, deg_to_rad(0))
+        self.add_wp(2.00, 0.80, 0.51, deg_to_rad(90))
+        # self.add_wp(1.60, 0.80, 0.51, deg_to_rad(90))
 
         # gate 2
-        self.add_wp(-0.80 + 0.20, 0.72, 0.52, deg_to_rad(90))
-        self.add_wp(-0.80 - 0.20, 0.72, 0.52, deg_to_rad(90))
+        self.add_wp(-0.80 + 0.30, 0.76, 0.52, deg_to_rad(90))
+        self.add_wp(-0.80 - 0.60, 0.76, 0.52, deg_to_rad(90))
 
         # U-turn after gate2
         self.add_wp(-2.30, 0.06, 0.52, deg_to_rad(130))
         self.add_wp(-2.00, -0.60, 0.52, deg_to_rad(180))
+
+        self.wps = path_generator(self.wps, 0.08).poses
 
         
 
