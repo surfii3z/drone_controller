@@ -1,6 +1,29 @@
 <launch>
-    <!-- <include file="$(find drone_controller)/launch/drone_controller.launch" /> -->
-    <include file="$(find tello_driver)/launch/tello_orb_teloop.launch" />
-    <node name="waypoint_mission_node" pkg="drone_controller" type="waypoint_mission_orb_slam2.py" output="screen"/>
+    <!-- darknet YOLOv4 -->
+    <!-- <include file="$(find darknet_ros)/launch/tello_gate_yolo_v4.launch" /> -->
+
+    <!-- controller -->
+    <include file="$(find drone_controller)/launch/waypoint_controller.launch" />
+    <!-- <include file="$(find drone_controller)/launch/vision_based_controller.launch" /> -->
+
+    <!-- connect to tello -->
+    <include file="$(find tello_driver)/launch/tello_node_wo_image.launch" />
+
+    <!-- connect to joy -->
+    <include file="$(find tello_driver)/launch/joy_teleop.launch" />
+
+    <!-- launch ORB_SLAM3 -->
+    <include file="$(find ORB_SLAM2)/launch/tello_orb.launch"/>
+    
+    <!-- optitrack  -->
+    <include file="$(find vrpn_client_ros)/launch/usrg_optitrack_lan.launch"/>
+
+    <!-- demo mission node -->
+    <node name="auto_racer_orb" pkg="drone_controller" type="auto_racer_orb.py" output="screen">
+        <!-- <remap from="/err_x_img"   to="/pid_ximg/state"/>
+        <remap from="/err_y_img"   to="/pid_yimg/state"/> -->
+    </node>
+
+    <!-- <node name="waypoint_mission_node" pkg="drone_controller" type="auto_racer_orb.py" output="screen"/> -->
  
 </launch>

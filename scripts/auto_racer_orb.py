@@ -65,11 +65,12 @@ class AutoRacer():
         self.height = 0
 
         # Information from gate detection algorithm
-        first_detected_img = rospy.wait_for_message("/darknet_ros/detection_image", Image)
+        # first_detected_img = rospy.wait_for_message("/darknet_ros/detection_image", Image)
+        # rospy.loginfo("waiting the darknet_ros to get image")
         self.object_count = 0
         self.zero_object_count = 0
-        self.detected_img_width = first_detected_img.width   # pylint: disable=no-member
-        self.detected_img_height = first_detected_img.height # pylint: disable=no-member
+        # self.detected_img_width = first_detected_img.width   # pylint: disable=no-member
+        # self.detected_img_height = first_detected_img.height # pylint: disable=no-member
         self.cur_target_bbox = None
 
         self.position_control_command = Twist()
@@ -115,8 +116,8 @@ class AutoRacer():
         self.sub_ux_img = rospy.Subscriber("/pid_ximg/control_effort", Float64, self.cb_ux_img)
         self.sub_uz_img = rospy.Subscriber("/pid_yimg/control_effort", Float64, self.cb_uz_img)
 
-        self.sub_bbox = rospy.Subscriber("/darknet_ros/bounding_boxes", BoundingBoxes, self.cb_bbox)
-        self.sub_obj_count = rospy.Subscriber("/darknet_ros/found_object", ObjectCount, self.cb_obj_count)
+        # self.sub_bbox = rospy.Subscriber("/darknet_ros/bounding_boxes", BoundingBoxes, self.cb_bbox)
+        # self.sub_obj_count = rospy.Subscriber("/darknet_ros/found_object", ObjectCount, self.cb_obj_count)
 
         self.tello_status_sub = rospy.Subscriber('/tello/status', TelloStatus, self.cb_tello_status)
 
@@ -130,7 +131,8 @@ class AutoRacer():
         if self.is_scale_calibrate:
             msg.pose.position.x = msg.pose.position.x * self.scale
             msg.pose.position.y = msg.pose.position.y * self.scale
-            msg.pose.position.z = msg.pose.position.z * self.scale + self.z_bias
+            msg.pose.position.z = self.height + 0.20
+            # msg.pose.position.z = msg.pose.position.z * self.scale + self.z_bias
 
         # self.optitrack_path_msg.header = msg.header
         # self.optitrack_path_msg.poses.append(msg)
@@ -138,6 +140,7 @@ class AutoRacer():
         
         # update current position
         self.current_pose = msg
+        
         self.pub_scaled_orb.publish(self.current_pose)
     
     def cb_bbox(self, msg):
@@ -331,24 +334,24 @@ class AutoRacer():
         self.set_waypoint(self.wps[self.idx_wp])
         
         while not rospy.is_shutdown():
-            if self.object_count == 0:
-                self.vision_control_command = Twist()
-                self.pub_control_command.publish(self.position_control_command)
-            else:
-                # self.vision_control_command.linear.y = self.position_control_command.linear.y
-                self.pub_control_command.publish(self.vision_control_command)
+            # if self.object_count == 0:
+            #     self.vision_control_command = Twist()
+            #     self.pub_control_command.publish(self.position_control_command)
+            # else:
+            #     # self.vision_control_command.linear.y = self.position_control_command.linear.y
+            #     self.pub_control_command.publish(self.vision_control_command)
 
-            # self.pub_control_command.publish(self.position_control_command)
+            self.pub_control_command.publish(self.position_control_command)
 
             if (self.is_next_target_wp_reached(th=0.45)):
-                # if self.is_mission_finished():
-                    # return
+                if self.is_mission_finished():
+                    return
                 self.update_idx_wp()
                 self.set_waypoint(self.wps[self.idx_wp])
             self.rate.sleep()
 
     def update_idx_wp(self):
-        self.idx_wp = (self.idx_wp + 1) % (len(self.wps))
+        self.idx_wp = self.idx_wp + 1
         rospy.loginfo("Update next waypoint index to %d" % self.idx_wp)
 
     def is_next_target_wp_reached(self, th=0.30):
@@ -418,25 +421,27 @@ class AutoRacer():
     
     def initialize_wps(self):
         # start
-        self.add_wp(-1.70, -0.60, 0.51, deg_to_rad(-90))
+        self.add_wp(0.00, 0.0, 0.60, deg_to_rad(0))
 
         # gate 1
-        self.add_wp(1.33 - 0.30, -0.7, 0.60, deg_to_rad(-90))
-        self.add_wp(1.33 + 0.60, -0.7, 0.60, deg_to_rad(-90))
+        self.add_wp(0.12, 2.88 - 0.30, 0.60, deg_to_rad(15))
+        self.add_wp(0.12, 2.88 + 0.30, 0.60, deg_to_rad(45))
 
-        # U-turn after gate1
-        self.add_wp(2.12, 0.00, 0.51, deg_to_rad(0))
-        self.add_wp(2.00, 0.80, 0.51, deg_to_rad(90))
-        # self.add_wp(1.60, 0.80, 0.51, deg_to_rad(90))
+        # U-turn after gate 1
+        self.add_wp(-0.15, 2.88 + 0.30, 0.60, deg_to_rad(65))
+        self.add_wp(-0.30, 2.88 + 0.50, 0.60, deg_to_rad(90))
+        self.add_wp(-0.60, 2.88 + 0.00, 0.60, deg_to_rad(120))
+        self.add_wp(-0.90, 2.88 - 0.30, 0.60, deg_to_rad(150))
 
         # gate 2
-        self.add_wp(-0.80 + 0.30, 0.76, 0.52, deg_to_rad(90))
-        self.add_wp(-0.80 - 0.60, 0.76, 0.52, deg_to_rad(90))
+        self.add_wp(-1.35, 0.70 + 0.30, 0.40, deg_to_rad(180))
+        self.add_wp(-1.35, 0.70 - 0.30, 0.40, deg_to_rad(220))
 
-        # U-turn after gate2
-        self.add_wp(-2.30, 0.06, 0.52, deg_to_rad(130))
-        self.add_wp(-2.00, -0.60, 0.52, deg_to_rad(180))
+        # U-turn after gate 2
+        self.add_wp(-0.60, 0.70 - 0.30, 0.60, deg_to_rad(260))
+        self.add_wp(-0.30, 0.70 - 0.60, 0.60, deg_to_rad(300))
         
+        self.add_wp(0.00, 0.0, 0.60, deg_to_rad(340))
 
         self.wps = path_generator(self.wps, 0.08).poses
 
@@ -444,7 +449,7 @@ class AutoRacer():
 
     def run(self):
         self.initialize_wps()
-        self.take_off()
+        # self.take_off()
         self.start_mission()
         self.return_home()
         self.land()
@@ -485,7 +490,7 @@ if __name__ == '__main__':
         if scale_status == -1:
             auto_racer.land()
         else:     
-            # auto_racer.run()
+            auto_racer.run()
             pass
 
         rospy.spin()

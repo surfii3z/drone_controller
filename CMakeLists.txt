@@ -185,6 +185,7 @@ catkin_install_python(PROGRAMS
   scripts/waypoint_mission.py
   scripts/waypoint_interpolation.py
   scripts/demo.py
+  scripts/auto_racer_orb.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
