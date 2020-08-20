@@ -90,7 +90,7 @@ class AutoRacer():
         self.pub_fast_mode = rospy.Publisher('/tello/fast_mode', Empty, queue_size=1)
         self.pub_scaled_orb = rospy.Publisher('/scaled_orb_pose', PoseStamped, queue_size=1)
         self.pub_orb_path = rospy.Publisher("/orb_path", Path, queue_size=1)
-        # self.pub_path = rospy.Publisher("/drone_path", Path, queue_size=1)
+        self.pub_wps_path = rospy.Publisher("/wps_path", Path, queue_size=1)
         self.pub_err_x_img = rospy.Publisher("/err_x_img", Float64, queue_size=1)
         self.pub_err_y_img = rospy.Publisher("/err_y_img", Float64, queue_size=1)
         
@@ -342,6 +342,7 @@ class AutoRacer():
             #     self.pub_control_command.publish(self.vision_control_command)
 
             self.pub_control_command.publish(self.position_control_command)
+            self.pub_wps_path.publish(self.wps_path)
 
             if (self.is_next_target_wp_reached(th=0.45)):
                 if self.is_mission_finished():
@@ -443,7 +444,8 @@ class AutoRacer():
         
         self.add_wp(0.00, 0.0, 0.60, deg_to_rad(340))
 
-        self.wps = path_generator(self.wps, 0.08).poses
+        self.wps_path = path_generator(self.wps, 0.08)
+        self.wps = self.wps_path.poses
 
         
 

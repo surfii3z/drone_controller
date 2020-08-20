@@ -154,6 +154,11 @@ add_executable(vision_based_controller_interface src/vision_based_controller_int
 target_link_libraries(vision_based_controller_interface ${catkin_LIBRARIES})
 add_dependencies(vision_based_controller_interface drone_controller_generate_messages_cpp)
 
+
+add_executable(path_visualization src/path_visualization.cpp)
+target_link_libraries(path_visualization ${catkin_LIBRARIES})
+add_dependencies(path_visualization drone_controller_generate_messages_cpp)
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
