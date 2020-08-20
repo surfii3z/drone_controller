@@ -131,7 +131,7 @@ class AutoRacer():
         if self.is_scale_calibrate:
             msg.pose.position.x = msg.pose.position.x * self.scale
             msg.pose.position.y = msg.pose.position.y * self.scale
-            msg.pose.position.z = self.height + 0.20
+            msg.pose.position.z = self.height + 0.10
             # msg.pose.position.z = msg.pose.position.z * self.scale + self.z_bias
 
         # self.optitrack_path_msg.header = msg.header
@@ -220,7 +220,7 @@ class AutoRacer():
         wp.pose.position.z = z
         self.wps.append(wp)
     
-    def calibrate_scale(self, N_sample=60, sampling_freq=10, distance=80):
+    def calibrate_scale(self, N_sample=30, sampling_freq=10, distance=80):
         '''
             parameters:
                 N_sample: number of sample at each height
@@ -283,10 +283,11 @@ class AutoRacer():
             rospy.logwarn("Scale Calibration error: zero division")
             return -1
 
+        
         # quality check, if not passed land
-        if scale_factor_orb_up < 0 or abs(scale_factor_orb_down / scale_factor_orb_up - 1) > 0.17:
+        rospy.logwarn("Scale ratio = {}".format(scale_factor_orb_up / scale_factor_orb_down))
+        if scale_factor_orb_up < 0 or abs(scale_factor_orb_down / scale_factor_orb_up - 1) > 0.15:
             rospy.logwarn("The scale calibration is bad. Landing the drone")
-            rospy.logwarn("Scale ratio = {}".format(scale_factor_orb_up / scale_factor_orb_down))
             return -1
 
         # SCALE calculation
@@ -426,16 +427,19 @@ class AutoRacer():
 
         # gate 1
         self.add_wp(0.12, 2.88 - 0.30, 0.60, deg_to_rad(15))
+        self.add_wp(0.12, 2.88 - 0.00, 0.60, deg_to_rad(30))
         self.add_wp(0.12, 2.88 + 0.30, 0.60, deg_to_rad(45))
 
         # U-turn after gate 1
-        self.add_wp(-0.15, 2.88 + 0.30, 0.60, deg_to_rad(65))
-        self.add_wp(-0.30, 2.88 + 0.50, 0.60, deg_to_rad(90))
-        self.add_wp(-0.60, 2.88 + 0.00, 0.60, deg_to_rad(120))
-        self.add_wp(-0.90, 2.88 - 0.30, 0.60, deg_to_rad(150))
+        self.add_wp(-0.15 - 0.10, 2.88 + 0.50, 0.60, deg_to_rad(65))
+        self.add_wp(-0.40 - 0.10, 2.88 + 0.60, 0.60, deg_to_rad(90))
+        self.add_wp(-0.70 - 0.10, 2.88 + 0.30, 0.60, deg_to_rad(120))
+        self.add_wp(-1.00, 2.88 - 0.30, 0.60, deg_to_rad(150))
+        self.add_wp(-1.35, 2.00       , 0.60, deg_to_rad(180))
 
         # gate 2
         self.add_wp(-1.35, 0.70 + 0.30, 0.40, deg_to_rad(180))
+        self.add_wp(-1.35, 0.70 + 0.00, 0.40, deg_to_rad(205))
         self.add_wp(-1.35, 0.70 - 0.30, 0.40, deg_to_rad(220))
 
         # U-turn after gate 2
@@ -494,8 +498,12 @@ if __name__ == '__main__':
         else:     
             auto_racer.run()
             pass
+        
+        # auto_racer.initialize_wps()
+        # while not rospy.is_shutdown():
+        #     auto_racer.pub_wps_path.publish(auto_racer.wps_path)
 
-        rospy.spin()
+        # rospy.spin()
         
     except rospy.ROSInterruptException:
         auto_racer.land()

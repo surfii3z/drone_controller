@@ -10,6 +10,17 @@ from geometry_msgs.msg import PoseStamped, Pose, Vector3, Point, Quaternion
 from nav_msgs.msg import Path
 import tf
 
+def deg_to_rad(deg):
+    deg = normalize_yaw(deg)
+    return deg * math.pi / 180
+
+def normalize_yaw(rad):
+    while(rad > math.pi):
+        rad -= 2 * math.pi
+    while(rad < -math.pi):
+        rad += 2 * math.pi
+    return rad
+
 class WaypointInterpolation:
     def __init__(self, wp_start, wp_end, dis_res):
         '''
@@ -103,6 +114,7 @@ class WaypointInterpolation:
             roll_diff = self.rpy_end[0] - self.rpy_start[0]
             pitch_diff = self.rpy_end[1] - self.rpy_start[1]
             yaw_diff = self.rpy_end[2] - self.rpy_start[2]
+            yaw_diff = normalize_yaw(yaw_diff)
             roll_res = roll_diff / step
             pitch_res = pitch_diff / step
             yaw_res = yaw_diff / step

@@ -24,6 +24,8 @@
         <remap from="/err_y_img"   to="/pid_yimg/state"/> -->
     </node>
 
+    <node name="path_visualizer" pkg="drone_controller" type="path_visualization" />
+
     <!-- <node name="waypoint_mission_node" pkg="drone_controller" type="auto_racer_orb.py" output="screen"/> -->
  
 </launch>
