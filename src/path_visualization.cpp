@@ -31,20 +31,27 @@ public:
 
     void cb_orb_pose(const geometry_msgs::PoseStamped msg)
     {
+        if (isnan(msg.pose.position.x))
+        {
+            ROS_WARN("Pose is nan");
+            return;
+        }
+            
+
         orb_path_msg.header.frame_id = "map";
         // if (orb_path_msg.poses.size() > MAX_KEEP)
-        // orb_path_msg.poses.erase(orb_path_msg.poses.begin());
+            // orb_path_msg.poses.erase(orb_path_msg.poses.begin());
         orb_path_msg.poses.push_back(msg);
         orb_path_pub.publish(orb_path_msg);
     }
 
     path_visualizer()
     {
-        optitrack_path_pub = nh.advertise<nav_msgs::Path>("/optitrack_path", 1);
-        optitrack_pose_sub = nh.subscribe("/vrpn_client_node/Tello_orb_jed/pose", 1, &path_visualizer::cb_optitrack_pose, this);
+        // optitrack_path_pub = nh.advertise<nav_msgs::Path>("/optitrack_path", 1);
+        // optitrack_pose_sub = nh.subscribe("/vrpn_client_node/Tello_orb_jed/pose", 1, &path_visualizer::cb_optitrack_pose, this);
 
-        orb_path_pub = nh.advertise<nav_msgs::Path>("/orb_path", 1);
-        orb_pose_sub = nh.subscribe("/scaled_orb_pose", 1, &path_visualizer::cb_orb_pose, this);
+        orb_path_pub = nh.advertise<nav_msgs::Path>("/slam_path", 1);
+        orb_pose_sub = nh.subscribe("/openvslam/camera_pose", 1, &path_visualizer::cb_orb_pose, this);
     }
     
 };

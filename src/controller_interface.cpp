@@ -1,3 +1,7 @@
+/* NOTE: /openvslam/camera_pose coordinate is NWU: N is +x, W is +y, and U is +z
+ *       /tello/cmd_vel coordinate         is ENU: E is +x, N is +y, and U is +z
+ */
+
 #include <ros/ros.h>
 #include <math.h>
 
@@ -136,7 +140,7 @@ int main(int argc, char **argv)
     ros::Publisher zero_setpoint_pub = ctrl_interface_node.advertise<std_msgs::Float64>("/pid_zero_setpoint", 1);
 
     // Subscribe to position reference
-    ros::Subscriber state_w_sub = ctrl_interface_node.subscribe("/scaled_orb_pose", 1, stateCallback);
+    ros::Subscriber state_w_sub = ctrl_interface_node.subscribe("/openvslam/camera_pose", 1, stateCallback);
     // ros::Subscriber state_w_sub = ctrl_interface_node.subscribe("/vrpn_client_node/Tello_jed/pose", 1, stateCallback);
 
     // Advertise service to update position reference
@@ -163,12 +167,15 @@ int main(int argc, char **argv)
         ROS_INFO("(x, y, z, yaw): %.03lf %.03lf %.03lf %.03lf", x_cur_w, y_cur_w, alt_cur_w, yaw_cur_w);
         yaw_cur_w = get_yaw_from_quadternion(qx_cur_w, qy_cur_w, qz_cur_w, qw_cur_w);
 
-
-        err_x_ref_w = x_ref_w - x_cur_w;
-        err_y_ref_w = y_ref_w - y_cur_w;
+        err_y_ref_w = x_ref_w - x_cur_w;
+        err_x_ref_w = -(y_ref_w - y_cur_w);
+        // err_x_ref_w = x_ref_w - x_cur_w;
+        // err_y_ref_w = y_ref_w - y_cur_w;
 
         err_x_b_msg.data = err_x_ref_w * cos(yaw_cur_w) + err_y_ref_w * sin(yaw_cur_w); // check sign
         err_y_b_msg.data = -err_x_ref_w * sin(yaw_cur_w) + err_y_ref_w * cos(yaw_cur_w); // check sign
+
+
         err_alt_b_msg.data = alt_ref_w - alt_cur_w; 
         err_yaw_b_msg.data = yaw_ref_w - yaw_cur_w;
 
@@ -184,6 +191,9 @@ int main(int argc, char **argv)
 
         err_x_b_pub.publish(err_x_b_msg);       // the PID controller outputs body velocity command
         err_y_b_pub.publish(err_y_b_msg);       // the PID controller outputs body velocity command
+        // err_x_b_pub.publish(err_y_b_msg);
+        // err_y_b_pub.publish(err_x_b_msg);
+
         err_alt_b_pub.publish(err_alt_b_msg);   // the PID controller outputs body velocity command
         err_yaw_b_pub.publish(err_yaw_b_msg);   // the PID controller outputs body angular velocity command
 
