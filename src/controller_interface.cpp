@@ -167,13 +167,16 @@ int main(int argc, char **argv)
         ROS_INFO("(x, y, z, yaw): %.03lf %.03lf %.03lf %.03lf", x_cur_w, y_cur_w, alt_cur_w, yaw_cur_w);
         yaw_cur_w = get_yaw_from_quadternion(qx_cur_w, qy_cur_w, qz_cur_w, qw_cur_w);
 
-        err_y_ref_w = x_ref_w - x_cur_w;
-        err_x_ref_w = -(y_ref_w - y_cur_w);
-        // err_x_ref_w = x_ref_w - x_cur_w;
-        // err_y_ref_w = y_ref_w - y_cur_w;
+        /* openvslam pose coordinate is NWU
+         * if the err_x_b is plus => pitch is plus => drone moves forward
+         * if the err_y_b is plus => roll is plus  => drone moves right, therefore the sign should be the opposite
+         */
+        err_x_ref_w = x_ref_w - x_cur_w;
+        err_y_ref_w = y_ref_w - y_cur_w;
 
-        err_x_b_msg.data = err_x_ref_w * cos(yaw_cur_w) + err_y_ref_w * sin(yaw_cur_w); // check sign
+        err_x_b_msg.data =  err_x_ref_w * cos(yaw_cur_w) + err_y_ref_w * sin(yaw_cur_w); // check sign
         err_y_b_msg.data = -err_x_ref_w * sin(yaw_cur_w) + err_y_ref_w * cos(yaw_cur_w); // check sign
+        err_y_b_msg.data = err_y_b_msg.data * -1;
 
 
         err_alt_b_msg.data = alt_ref_w - alt_cur_w; 

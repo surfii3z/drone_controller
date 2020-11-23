@@ -8,8 +8,8 @@
     <!-- <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" /> -->
     
     <node name="controller_interface" pkg="drone_controller" type="controller_interface">
-        <remap from="/err_x_b"   to="/pid_roll/state"/>
-        <remap from="/err_y_b"   to="/pid_pitch/state"/>
+        <remap from="/err_x_b"   to="/pid_pitch/state"/>
+        <remap from="/err_y_b"   to="/pid_roll/state"/>
         <remap from="/err_alt_b" to="/pid_thrust/state"/>
         <remap from="/err_yaw_b" to="/pid_yaw/state"/>
         <!-- <remap from="/pid_zero_setpoint" to="/pid_yaw/state"/> -->
