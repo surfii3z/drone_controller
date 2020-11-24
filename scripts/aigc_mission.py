@@ -246,9 +246,9 @@ class AutoRacer():
         self.add_wp(12.40,  0.00, 1.00, deg_to_rad(0))
 
         # before tunnel
-        self.add_wp(13.55, -0.15, 0.15, deg_to_rad(-15))
-        self.add_wp(14.00, -0.20, 0.15, deg_to_rad(-60))
-        self.add_wp(14.50, -0.25, 0.15, deg_to_rad(-90))
+        self.add_wp(13.55, -0.15, 1.5, deg_to_rad(-15))
+        self.add_wp(14.00, -0.20, 1.5, deg_to_rad(-60))
+        self.add_wp(14.50, -0.25, 1.5, deg_to_rad(-90))
   
 
         self.wps_path = path_generator(self.wps, 0.05)
