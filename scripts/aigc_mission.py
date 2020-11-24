@@ -147,7 +147,7 @@ class AutoRacer():
             self.pub_control_command.publish(self.position_control_command)
             self.pub_wps_path.publish(self.wps_path)
 
-            if (self.is_next_target_wp_reached(th=0.20)):
+            if (self.is_next_target_wp_reached(th=0.50)):
                 if self.is_mission_finished():
                     return
                 self.update_idx_wp()
@@ -228,31 +228,27 @@ class AutoRacer():
 
         # start
         # self.add_wp( 0.00, 0.0,  0.15, deg_to_rad(0))
-        # self.add_wp(-0.14, -0.23, 0.15, deg_to_rad(0))
+        self.add_wp(-0.14, -0.23, 0.15, deg_to_rad(0))
 
         # right side of the wall
         # self.add_wp(0.42, -1.38, 0.15, deg_to_rad(0))
         # self.add_wp(2.38, -1.36, 0.15, deg_to_rad(0))
-        # self.add_wp(0.42, -1.18, 0.15, deg_to_rad(0))
-        # self.add_wp(2.38, -1.16, 0.15, deg_to_rad(0))
-        # self.add_wp(4.46, -0.35, 0.15, deg_to_rad(0))
+        self.add_wp(0.42, -1.18, 0.15, deg_to_rad(0))
+        self.add_wp(2.38, -1.16, 0.15, deg_to_rad(0))
+        self.add_wp(4.46, -0.35, 0.15, deg_to_rad(0))
 
-        # # poles
-        # self.add_wp(5.90, -0.10, 0.15, deg_to_rad(0))
-        # self.add_wp(8.05,  0.41, 0.15, deg_to_rad(0))
+        # poles
+        self.add_wp(5.90, -0.10, 1.00, deg_to_rad(0))
+        self.add_wp(8.05,  0.41, 1.00, deg_to_rad(0))
 
-        # # trees
-        # self.add_wp(10.40, -0.57, 0.15, deg_to_rad(0))
-        # self.add_wp(12.40,  0.00, 0.15, deg_to_rad(0))
+        # trees
+        self.add_wp(10.40, -0.57, 1.00, deg_to_rad(0))
+        self.add_wp(12.40,  0.00, 1.00, deg_to_rad(0))
 
-        # # before tunnel
-        # self.add_wp(13.55, -0.15, 0.15, deg_to_rad(-15))
-        # self.add_wp(14.00, -0.20, 0.15, deg_to_rad(-60))
-        # self.add_wp(14.50, -0.25, 0.15, deg_to_rad(-90))
-
-        # test
-        self.add_wp(0.00, 0.50, 0.20, deg_to_rad(0))
-        self.add_wp(0.00, 0.00, 0.20, deg_to_rad(0))
+        # before tunnel
+        self.add_wp(13.55, -0.15, 0.15, deg_to_rad(-15))
+        self.add_wp(14.00, -0.20, 0.15, deg_to_rad(-60))
+        self.add_wp(14.50, -0.25, 0.15, deg_to_rad(-90))
   
 
         self.wps_path = path_generator(self.wps, 0.05)
