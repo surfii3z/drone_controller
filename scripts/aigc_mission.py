@@ -9,9 +9,9 @@ from waypoint_interpolation import path_generator
 
 # MESSAGES
 from std_msgs.msg import Empty, Float64, Header
-from geometry_msgs.msg import Twist, PoseStamped, Pose, Point, Quaternion
-from sensor_msgs.msg import Image
+from geometry_msgs.msg import Twist, PoseWithCovarianceStamped, PoseStamped, Pose, Point, Quaternion
 from nav_msgs.msg import Path
+from tf2_msgs import TFMessage
 
 from tello_driver.msg import TelloStatus
 from tello_driver.srv import MoveUp, MoveDown
@@ -70,13 +70,11 @@ class AutoRacer():
         self.pub_land = rospy.Publisher('/tello/land', Empty, queue_size=1)
         self.pub_control_command = rospy.Publisher('/tello/cmd_vel', Twist, queue_size=1)
         self.pub_fast_mode = rospy.Publisher('/tello/fast_mode', Empty, queue_size=1)
-        self.pub_scaled_orb = rospy.Publisher('/scaled_orb_pose', PoseStamped, queue_size=1)
-        self.pub_orb_path = rospy.Publisher("/orb_path", Path, queue_size=1)
         self.pub_wps_path = rospy.Publisher("/wps_path", Path, queue_size=1)
         self.pub_err_x_img = rospy.Publisher("/err_x_img", Float64, queue_size=1)
         self.pub_err_y_img = rospy.Publisher("/err_y_img", Float64, queue_size=1)
         
-        rospy.loginfo("Waiting for /set_ref_pose from drone_controller node")
+        # rospy.loginfo("Waiting for /set_ref_pose from drone_controller node")
         # rospy.wait_for_service('/set_ref_pose')
         
         self.update_target_call = rospy.ServiceProxy('/set_ref_pose', SetRefPose)
@@ -85,10 +83,11 @@ class AutoRacer():
         self.srv_cli_down = rospy.ServiceProxy('/tello/down', MoveDown)
 
         # SUBSCRIBER
-        rospy.loginfo("Waiting for openvslam pose")
+        # rospy.loginfo("Waiting for openvslam pose")
         # rospy.wait_for_message('/openvslam/camera_pose', PoseStamped)
         
-        self.sub_pose   = rospy.Subscriber('/openvslam/camera_pose', PoseStamped, self.cb_pose)
+        # self.sub_pose   = rospy.Subscriber('/openvslam/camera_pose', PoseWithCovarianceStamped, self.cb_pose)
+        self.sub_ekf_pose = rospy.Subscriber('/tf', TFMessage, self.cb_ekf_pose)
         self.sub_pos_ux = rospy.Subscriber('/pid_roll/control_effort', Float64, self.cb_pos_ux)
         self.sub_pos_uy = rospy.Subscriber('/pid_pitch/control_effort', Float64, self.cb_pos_uy)
         self.sub_pos_uz = rospy.Subscriber('/pid_thrust/control_effort', Float64, self.cb_pos_uz)
@@ -99,8 +98,15 @@ class AutoRacer():
         rospy.sleep(1)
 
     # CALLBACK FUNCTIONS
-    def cb_pose(self, msg):
-        self.current_pose = msg
+    # def cb_pose(self, msg):
+    #     self.current_pose = msg
+    
+    def cb_ekf_pose(self, msg):
+        self.current_pose.header = msg.transforms[0].header
+        self.current_pose.pose.position.x = msg.transforms[0].transform.translation.x
+        self.current_pose.pose.position.y = msg.transforms[0].transform.translation.y
+        self.current_pose.pose.position.z = msg.transforms[0].transform.translation.z
+        self.current_pose.orientation = msg.transforms[0].transform.rotation
 
     def cb_pos_ux(self, msg):
         self.position_control_command.linear.x = msg.data
