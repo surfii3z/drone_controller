@@ -42,8 +42,7 @@ class AutoRacer():
         self.rate = rospy.Rate(ROS_RATE)
         self.idx_wp = 0
         self.frame_id = "odom"
-        self.is_2d_mode = True
-        
+        self.is_2d_mode = False
         self.home_wp = PoseStamped(header=Header(stamp=rospy.Time.now(), 
                                                  frame_id=self.frame_id
                                                 ),
@@ -144,22 +143,11 @@ class AutoRacer():
         self.wps.append(wp)
     
     def start_mission(self):
-        rospy.loginfo("Prepare to start the mission")
-        rospy.sleep(1)
-        rospy.loginfo("Mission started")
-        # self.enter_fast_mode()
-        self.set_waypoint(self.wps[self.idx_wp])
+        # self.set_waypoint(self.wps[self.idx_wp])
         
         while not rospy.is_shutdown():
-            self.pub_ctrl_cmd.publish(self.pos_ctrl_cmd)
-            self.pub_ctrl_cmd_to_ekf.publish(self.pos_ctrl_cmd)
-            self.pub_wps_path.publish(self.wps_path)
 
-            if (self.is_next_target_wp_reached(th=0.70)):
-                if self.is_mission_finished():
-                    return
-                self.update_idx_wp()
-                self.set_waypoint(self.wps[self.idx_wp])
+            self.pub_wps_path.publish(self.wps_path)
             self.rate.sleep()
 
     def update_idx_wp(self):
@@ -175,63 +163,6 @@ class AutoRacer():
     def is_mission_finished(self):
         # index start from zero
         return self.idx_wp == len(self.wps) - 1
-
-    def take_off(self):
-        rospy.loginfo("Taking Off")
-        take_off_msg = Empty()
-        self.pub_take_off.publish(take_off_msg)
-        rospy.sleep(3)
-        rospy.loginfo("Taking Off: Finish")
-
-    def enter_fast_mode(self):
-        rospy.loginfo("Entering Fast Mode")
-        self.pub_fast_mode.publish(Empty())
-        rospy.loginfo("Entering Fast Mode: Finish")
-
-    def land(self):
-        rospy.loginfo("Landing: Prepare")
-        self.pub_ctrl_cmd.publish(self.zero_control_command)
-        self.pub_ctrl_cmd_to_ekf.publish(self.zero_control_command)
-        rospy.sleep(1)
-        rospy.loginfo("Landing: Start")
-        land_msg = Empty()
-        self.pub_land.publish(land_msg)
-        rospy.loginfo("Landing: Finish")
-        rospy.on_shutdown(shutdown_handler)
-
-    def set_waypoint(self, wp):
-        assert(isinstance(wp, PoseStamped)), "wp should be a PoseStamped"
-        try:
-            _, _, yaw = self._get_rpy(wp)
-            res = self.update_target_call(wp.pose.position.x, \
-                                          wp.pose.position.y, \
-                                          wp.pose.position.z, \
-                                          yaw)
-            return res
-        except rospy.ServiceException as e:
-            rospy.logerr("Service call failed: %s"%e)
-
-    def return_home(self):
-        rospy.loginfo("Mission finished: Returning Home")
-        self.set_home_waypoint()
-        while not rospy.is_shutdown():
-            self.pub_ctrl_cmd.publish(self.pos_ctrl_cmd)
-            self.pub_ctrl_cmd_to_ekf.publish(self.pos_ctrl_cmd)
-            if (self.is_home_reached()):
-                rospy.loginfo("Mission finished: Home Reached")
-                return
-            self.rate.sleep()
-    
-    def set_home_waypoint(self):
-        try:
-            _, _, yaw = self._get_rpy(self.home_wp)
-            res = self.update_target_call(self.home_wp.pose.position.x, \
-                                          self.home_wp.pose.position.y, \
-                                          self.home_wp.pose.position.z, \
-                                          yaw)
-            return res
-        except rospy.ServiceException as e:
-            rospy.logerr("Service call failed: %s"%e)
     
     def initialize_wps(self):
         # NWU coordinate
@@ -257,29 +188,7 @@ class AutoRacer():
         self.add_wp(12.50,  2.80, 1.15, deg_to_rad( -5))
         self.add_wp(13.00,  3.00, 1.15, deg_to_rad(-30))
         self.add_wp(14.00,  2.80, 1.15, deg_to_rad(-75))
-        self.add_wp(14.65,  2.00, 1.15, deg_to_rad(-120))
-        
-        # in tunnel
-        # self.add_wp(14.00,  0.80, 1.15, deg_to_rad(-90))
-        # self.add_wp(13.80,  0.00, 1.15, deg_to_rad(-90))
-
-        # self.add_wp(13.70, -0.80, 1.15, deg_to_rad(-90))  
-        # self.add_wp(13.60, -1.80, 1.15, deg_to_rad(-90))
-        # self.add_wp(13.70, -0.80, 1.15, deg_to_rad(-60))  
-        # self.add_wp(13.60, -1.80, 1.15, deg_to_rad(-20))
-
-        # self.add_wp(14.00,  0.80, 1.15, deg_to_rad(-115))
-        # self.add_wp(13.80,  0.00, 1.15, deg_to_rad(-130))
-        # self.add_wp(13.70, -0.80, 1.15, deg_to_rad(-155))  
-        # self.add_wp(13.60, -1.80, 1.15, deg_to_rad(-180))  # should finish turning and be able to localize itself again
-
-        # self.add_wp(13.00, -2.00, 1.15, deg_to_rad(-180))
-
-        # windows
-        # self.add_wp(11.50, -1.90, 1.15, deg_to_rad(-180))
-        # self.add_wp(10.80, -1.35, 1.15, deg_to_rad(-180))
-        # self.add_wp( 9.50, -0.80, 1.15, deg_to_rad(-180))
-        # self.add_wp( 7.50, -0.80, 1.15, deg_to_rad(-180))
+        self.add_wp(14.65,  1.80, 1.15, deg_to_rad(-110))
         
 
         self.wps_path = path_generator(self.wps, 0.05)
@@ -287,16 +196,19 @@ class AutoRacer():
         rospy.loginfo(len(self.wps))
 
         rospy.loginfo("Finish interpolating the waypoints")
-
-    def run(self):
-        self.initialize_wps()
-        # self.take_off()
-        self.start_mission()
-        # self.return_home()
-        self.land()
-
-    # INTERNAL_FUNCTION
     
+    def set_waypoint(self, wp):
+        assert(isinstance(wp, PoseStamped)), "wp should be a PoseStamped"
+        try:
+            _, _, yaw = self._get_rpy(wp)
+            res = self.update_target_call(wp.pose.position.x, \
+                                          wp.pose.position.y, \
+                                          wp.pose.position.z, \
+                                          yaw)
+            return res
+        except rospy.ServiceException as e:
+            rospy.logerr("Service call failed: %s"%e)
+
     def _get_rpy(self, wp):
         '''
             return the [roll, pitch, yaw] of the waypoint (wp)
@@ -305,27 +217,12 @@ class AutoRacer():
         assert(isinstance(wp, PoseStamped)), "wp should be a PoseStamped"
         q = wp.pose.orientation
         return tf.transformations.euler_from_quaternion((q.x, q.y, q.z, q.w))
-    
-    def _L2_distance_from(self, target_wp):
-        assert (isinstance(target_wp, PoseStamped)), "target_wp must be a PoseStamped"
-        return math.sqrt((self.current_pose.pose.position.x - target_wp.pose.position.x) ** 2 + \
-                         (self.current_pose.pose.position.y - target_wp.pose.position.y) ** 2 + \
-                         (self.current_pose.pose.position.z - target_wp.pose.position.z) ** 2)
-    
-    def _L2_2Ddistance_from(self, target_wp):
-        assert (isinstance(target_wp, PoseStamped)), "target_wp must be a PoseStamped"
-        return math.sqrt((self.current_pose.pose.position.x - target_wp.pose.position.x) ** 2 + \
-                         (self.current_pose.pose.position.y - target_wp.pose.position.y) ** 2)
-    
 
+    def run(self):
+        self.initialize_wps()
+        self.start_mission()
+    
 if __name__ == '__main__':
-    try:
-        auto_racer = AutoRacer()
-
-        # auto_racer.take_off()
+    auto_racer = AutoRacer()
    
-        auto_racer.run()
-
-        
-    except rospy.ROSInterruptException:
-        auto_racer.land()
+    auto_racer.run()
