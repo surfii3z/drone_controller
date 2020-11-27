@@ -26,6 +26,9 @@ def shutdown_handler():
     rospy.loginfo("Shut down")
 
 def deg_to_rad(deg):
+    '''
+        Convert angle in degree to radian
+    '''
     deg = normalize_yaw(deg)
     return deg * math.pi / 180
 
@@ -67,12 +70,9 @@ class AutoRacer():
 
         # Information from gate detection algorithm
         self.object_count = 0
-        self.zero_object_count = 0
-        self.cur_target_bbox = None
 
         self.pos_ctrl_cmd = Twist()
         self.pos_ctrl_cmd_ekf = Twist()
-        self.vision_control_command = Twist()
         self.zero_control_command = Twist()
         self.slam_path_msg = Path()
 
@@ -81,35 +81,21 @@ class AutoRacer():
         self.pub_land = rospy.Publisher('/tello/land', Empty, queue_size=1)
         self.pub_ctrl_cmd = rospy.Publisher('/tello/cmd_vel', Twist, queue_size=1)
         self.pub_ctrl_cmd_to_ekf = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
-        self.pub_fast_mode = rospy.Publisher('/tello/fast_mode', Empty, queue_size=1)
         self.pub_wps_path = rospy.Publisher("/wps_path", Path, queue_size=1)
-        self.pub_err_x_img = rospy.Publisher("/err_x_img", Float64, queue_size=1)
-        self.pub_err_y_img = rospy.Publisher("/err_y_img", Float64, queue_size=1)
-        
-        # rospy.loginfo("Waiting for /set_ref_pose from drone_controller node")
-        # rospy.wait_for_service('/set_ref_pose')
         
         self.update_target_call = rospy.ServiceProxy('/set_ref_pose', SetRefPose)
-        self.move_drone_call = rospy.ServiceProxy('/move_drone_w', MoveDroneW)
-        self.srv_cli_up = rospy.ServiceProxy('/tello/up', MoveUp)
-        self.srv_cli_down = rospy.ServiceProxy('/tello/down', MoveDown)
 
         # SUBSCRIBER
-        # rospy.loginfo("Waiting for openvslam pose")
-        # rospy.wait_for_message('/openvslam/camera_pose', PoseStamped)
-        
         self.sub_ekf_pose = rospy.Subscriber('/tf', TFMessage, self.cb_ekf_pose)
         self.sub_pos_ux = rospy.Subscriber('/pid_roll/control_effort', Float64, self.cb_pos_ux)
         self.sub_pos_uy = rospy.Subscriber('/pid_pitch/control_effort', Float64, self.cb_pos_uy)
         self.sub_pos_uz = rospy.Subscriber('/pid_thrust/control_effort', Float64, self.cb_pos_uz)
         self.sub_pos_uyaw = rospy.Subscriber('/pid_yaw/control_effort', Float64, self.cb_pos_uyaw)
 
-        self.tello_status_sub = rospy.Subscriber('/tello/status', TelloStatus, self.cb_tello_status)
-
         rospy.sleep(1)
 
+
     # CALLBACK FUNCTIONS
-    
     def cb_ekf_pose(self, msg):
         self.current_pose.header = msg.transforms[0].header
         self.current_pose.pose.position.x = msg.transforms[0].transform.translation.x
@@ -122,7 +108,6 @@ class AutoRacer():
         self.pos_ctrl_cmd_ekf.linear.x = msg.data * EFK_TWIST_SCALE
 
     def cb_pos_uy(self, msg):
-        self.vision_control_command.linear.y = msg.data
         self.pos_ctrl_cmd.linear.y = msg.data
         self.pos_ctrl_cmd_ekf.linear.y = msg.data * EFK_TWIST_SCALE
 
@@ -131,12 +116,8 @@ class AutoRacer():
         self.pos_ctrl_cmd_ekf.linear.z = msg.data * EFK_TWIST_SCALE
 
     def cb_pos_uyaw(self, msg):
-        self.vision_control_command.angular.y = msg.data
         self.pos_ctrl_cmd.angular.z = msg.data
         self.pos_ctrl_cmd_ekf.angular.z = msg.data * EFK_TWIST_SCALE
-
-    def cb_tello_status(self, msg):
-        self.height = msg.height_m
         
     # HELPER FUNCTIONS
     def add_wp(self, x, y, z, yaw):
@@ -149,13 +130,18 @@ class AutoRacer():
         wp.pose.position.z = z if not self.is_2d_mode else 0 
         self.wps.append(wp)
     
+
     def run_mission_one(self):
+        '''
+            MISSION ONE: following the waypoint using the pre-built map and EKF
+            From Start to in front of the tunnel
+            Just follow the waypoint using PD control
+        '''
         rospy.loginfo("M1: Prepare to start")
         self.mission_one_wps()
 
         rospy.sleep(1)
         rospy.loginfo("M1: Started")
-        # self.enter_fast_mode()
         self.set_waypoint(self.wps[self.idx_wp])
         
         while not rospy.is_shutdown():
@@ -172,9 +158,14 @@ class AutoRacer():
                 self.set_waypoint(self.wps[self.idx_wp])
             self.rate.sleep()
     
+
     def run_mission_two(self):
-        # ctrl cmd is ENU
-        
+        '''
+            MISSION TWO: Cannot either do localization or EKF (control input is not in m/s, heading is bad)
+            Go inside tunnul, turn right and then go out
+            Use only velocity command because it cannot localize itself
+            # ctrl cmd coordinate is ENU
+        '''
         rospy.loginfo("M2: Prepare to start")
         rospy.sleep(1)
         rospy.loginfo("M2: Started")
@@ -188,11 +179,10 @@ class AutoRacer():
         self.pos_ctrl_cmd_ekf.linear.z = self.pos_ctrl_cmd.linear.z * EFK_TWIST_SCALE
         self.pub_ctrl_cmd.publish(self.pos_ctrl_cmd)
         self.pub_ctrl_cmd_to_ekf.publish(self.pos_ctrl_cmd_ekf)
-        
         rospy.sleep(0.8)
-        # self.pub_ctrl_cmd.publish(self.zero_control_command)    # STOP
 
-        # Go in
+
+        # Go in fast
         self._set_ctrl_cmd_zeros(self.pos_ctrl_cmd)
         self._set_ctrl_cmd_zeros(self.pos_ctrl_cmd_ekf)
         self.pos_ctrl_cmd.linear.y = 1.0
@@ -200,8 +190,8 @@ class AutoRacer():
         self.pub_ctrl_cmd.publish(self.pos_ctrl_cmd)
         self.pub_ctrl_cmd_to_ekf.publish(self.pos_ctrl_cmd_ekf)
         rospy.sleep(3.9)
-        # self.pub_ctrl_cmd.publish(self.zero_control_command)    # STOP
-    
+
+        # Go in (slowdown))
         self._set_ctrl_cmd_zeros(self.pos_ctrl_cmd)
         self._set_ctrl_cmd_zeros(self.pos_ctrl_cmd_ekf)
         self.pos_ctrl_cmd.linear.y = 0.1
@@ -220,7 +210,6 @@ class AutoRacer():
         self.pub_ctrl_cmd.publish(self.pos_ctrl_cmd)
         self.pub_ctrl_cmd_to_ekf.publish(self.pos_ctrl_cmd_ekf)
         rospy.sleep(3)
-        # self.pub_ctrl_cmd.publish(self.zero_control_command)    # STOP
         rospy.loginfo("M2: Finish turning right")
 
         # Go out
@@ -238,19 +227,28 @@ class AutoRacer():
         self.pub_ctrl_cmd_to_ekf.publish(self.pos_ctrl_cmd_ekf)
 
         rospy.sleep(3)
-        # self.pub_ctrl_cmd.publish(self.zero_control_command)    # STOP
         rospy.loginfo("M2: Finish going out")
 
         rospy.loginfo("Mission TWO finished")
         self.pub_ctrl_cmd.publish(self.zero_control_command)    # STOP
 
+
     def run_mission_three(self):
+        '''
+            MISSION THREE: Relocalization using the pre-built map, following the waypoint
+                           Basically MISSION ONE + MISSION TWO
+            - Go to the position of the window (it should be able to localize itself again now)
+                using PD control to follow the waypoint
+            - When reaching the end point, it should move forward, up and right (simultaneously)
+                because it cannot localize itself near the windows
+            # ctrl cmd coordinate is ENU
+        '''
+
         rospy.loginfo("M3: Prepare to start")
         self.mission_three_wps()
 
         rospy.sleep(1)
         rospy.loginfo("M3: Started")
-        # self.enter_fast_mode()
         self.set_waypoint(self.wps[self.idx_wp])
         
         while not rospy.is_shutdown():
@@ -261,6 +259,7 @@ class AutoRacer():
             if (self.is_next_target_wp_reached(th=0.70)):
                 if self.is_mission_finished():
                     self._set_ctrl_cmd_zeros(self.pos_ctrl_cmd)
+                    # move forward, up and right (simultaneously)
                     self.pos_ctrl_cmd.linear.y = 1.0
                     self.pos_ctrl_cmd.linear.x = 0.5
                     self.pos_ctrl_cmd.linear.z = 0.5
@@ -295,11 +294,6 @@ class AutoRacer():
         rospy.sleep(3)
         rospy.loginfo("Taking Off: Finish")
 
-    def enter_fast_mode(self):
-        rospy.loginfo("Entering Fast Mode")
-        self.pub_fast_mode.publish(Empty())
-        rospy.loginfo("Entering Fast Mode: Finish")
-
     def land(self):
         rospy.loginfo("Landing: Prepare")
         self.pub_ctrl_cmd.publish(self.zero_control_command)
@@ -322,32 +316,14 @@ class AutoRacer():
             return res
         except rospy.ServiceException as e:
             rospy.logerr("Service call failed: %s"%e)
-
-    def return_home(self):
-        rospy.loginfo("Mission finished: Returning Home")
-        self.set_home_waypoint()
-        while not rospy.is_shutdown():
-            self.pub_ctrl_cmd.publish(self.pos_ctrl_cmd)
-            self.pub_ctrl_cmd_to_ekf.publish(self.pos_ctrl_cmd)
-            if (self.is_home_reached()):
-                rospy.loginfo("Mission finished: Home Reached")
-                return
-            self.rate.sleep()
-    
-    def set_home_waypoint(self):
-        try:
-            _, _, yaw = get_rpy(self.home_wp)
-            res = self.update_target_call(self.home_wp.pose.position.x, \
-                                          self.home_wp.pose.position.y, \
-                                          self.home_wp.pose.position.z, \
-                                          yaw)
-            return res
-        except rospy.ServiceException as e:
-            rospy.logerr("Service call failed: %s"%e)
     
     def mission_one_wps(self):
+        '''
+            Set the waypoint for Mission ONE, from start to in front of the tunnel
+            # NWU coordinate
+        '''
         self.idx_wp = 0
-        # NWU coordinate
+        
 
         # start
         self.add_wp( 0.50, -0.15, 1.15, deg_to_rad(0))
@@ -370,35 +346,22 @@ class AutoRacer():
         self.add_wp(13.00,  3.00, 1.15, deg_to_rad(-30))
         self.add_wp(14.00,  2.80, 1.15, deg_to_rad(-75))
         self.add_wp(14.65,  2.00, 1.15, deg_to_rad(-120))
-        
-        # in tunnel
-        # self.add_wp(14.00,  0.80, 1.15, deg_to_rad(-90))
-        # self.add_wp(13.80,  0.00, 1.15, deg_to_rad(-90))
-
-        # self.add_wp(13.70, -0.80, 1.15, deg_to_rad(-90))  
-        # self.add_wp(13.60, -1.80, 1.15, deg_to_rad(-90))
-        # self.add_wp(13.70, -0.80, 1.15, deg_to_rad(-60))  
-        # self.add_wp(13.60, -1.80, 1.15, deg_to_rad(-20))
-
-        # self.add_wp(14.00,  0.80, 1.15, deg_to_rad(-115))
-        # self.add_wp(13.80,  0.00, 1.15, deg_to_rad(-130))
-        # self.add_wp(13.70, -0.80, 1.15, deg_to_rad(-155))  
-        # self.add_wp(13.60, -1.80, 1.15, deg_to_rad(-180))  # should finish turning and be able to localize itself again
 
         self.wps_path = path_generator(self.wps, 0.05)
         self.wps = self.wps_path.poses
         rospy.loginfo("M1: Finish interpolating the waypoints")
 
     def mission_three_wps(self):
+        '''
+            Set the waypoint for Mission Three, from outside of the tunnel to the window
+            # NWU coordinate
+        '''
         self.idx_wp = 0
         self.wps = []
-        # self.add_wp(13.00, -2.00, 1.15, deg_to_rad(-180))
 
         # windows
-        # self.add_wp(11.50, -1.90, 1.15, deg_to_rad(-180))
         self.add_wp(10.80, -1.35, 1.15, deg_to_rad(-180))
         self.add_wp( 10.80, -0.70, 1.15, deg_to_rad(-180))
-        # self.add_wp( 7.50, -0.80, 1.15, deg_to_rad(-180))
 
         self.wps_path = path_generator(self.wps, 0.05)
         self.wps = self.wps_path.poses
@@ -407,23 +370,17 @@ class AutoRacer():
         
 
     def run(self):
+        '''
+            Start the mission
+
+        '''
         
-        # self.take_off()
         self.run_mission_one()
         self.run_mission_two()
         self.run_mission_three()
-        # self.return_home()
-        # self.land()
+        self.land()
 
     # INTERNAL_FUNCTION
-    
-
-    
-    def _L2_distance_from(self, target_wp):
-        assert (isinstance(target_wp, PoseStamped)), "target_wp must be a PoseStamped"
-        return math.sqrt((self.current_pose.pose.position.x - target_wp.pose.position.x) ** 2 + \
-                         (self.current_pose.pose.position.y - target_wp.pose.position.y) ** 2 + \
-                         (self.current_pose.pose.position.z - target_wp.pose.position.z) ** 2)
     
     def _L2_2Ddistance_from(self, target_wp):
         assert (isinstance(target_wp, PoseStamped)), "target_wp must be a PoseStamped"
@@ -431,6 +388,9 @@ class AutoRacer():
                          (self.current_pose.pose.position.y - target_wp.pose.position.y) ** 2)
     
     def _set_ctrl_cmd_zeros(self, ctrl_cmd):
+        '''
+            set zero Twist()
+        '''
         ctrl_cmd.linear.x = 0
         ctrl_cmd.linear.y = 0
         ctrl_cmd.linear.z = 0
