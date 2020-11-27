@@ -1,5 +1,18 @@
 # dobot_controller
 
+# Dependency
+openVSLAM
+`https://github.com/surfii3z/openvslam/tree/aigc_ekf`
+robot_localization
+`https://github.com/surfii3z/robot_localization`
+drone controller
+`https://github.com/surfii3z/drone_controller/tree/aigc_ekf`
+tello_driver
+`https://github.com/surfii3z/tello_driver`
+image_undistort
+`https://github.com/surfii3z/image_undistort`
+
+
 # Start the experiment
 ``` bash
 # connect to Tello using WIFI and ROS
