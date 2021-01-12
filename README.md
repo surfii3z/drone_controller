@@ -5,7 +5,7 @@ openVSLAM
 `https://github.com/surfii3z/openvslam/tree/aigc_ekf`
 
 robot_localization
-`https://github.com/surfii3z/robot_localization`
+`https://github.com/surfii3z/robot_localization/tree/aigc_ekf`
 
 drone controller
 `https://github.com/surfii3z/drone_controller/tree/aigc_ekf`
