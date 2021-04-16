@@ -1,6 +1,11 @@
 # dobot_controller
 
 # Dependency
+Install
+```bash
+sudo apt-get install ros-melodic-pid
+```
+
 openVSLAM
 `https://github.com/surfii3z/openvslam/tree/aigc_ekf`
 
