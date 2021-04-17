@@ -1,6 +1,6 @@
 <launch>
     <node name="controller" pkg="pid" type="controller" ns="pid_thrust">
-      <param name="Kp" value="-5.0" />
+      <param name="Kp" value="-3.0" />
       <param name="Ki" value="0" />
       <param name="Kd" value="-1.8" />
       <param name="upper_limit" value="1.0" />

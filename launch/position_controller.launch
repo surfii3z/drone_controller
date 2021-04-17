@@ -1,8 +1,8 @@
 <launch>
     <node name="controller" pkg="pid" type="controller" ns="pid_roll">
-      <param name="Kp" value="-5.0" /> <!-- 5.0 -->
+      <param name="Kp" value="-3.0" /> <!-- 5.0 -->
       <param name="Ki" value="-0.0" /> 
-      <param name="Kd" value="-3.8" />
+      <param name="Kd" value="-1.8" />
       <param name="upper_limit" value="0.6" />
       <param name="lower_limit" value="-0.6" />
       <!-- <param name="upper_limit" value="1.50" /> -->
@@ -15,9 +15,9 @@
     </node>
 
     <node name="controller" pkg="pid" type="controller" ns="pid_pitch">
-      <param name="Kp" value="-5.0" />
+      <param name="Kp" value="-3.0" />
       <param name="Ki" value="-0.0" />
-      <param name="Kd" value="-1.5" />
+      <param name="Kd" value="-1.8" />
       <!-- <param name="upper_limit" value="1.00" /> -->
       <!-- <param name="lower_limit" value="-1.00" /> -->
       <param name="upper_limit" value="0.6" />

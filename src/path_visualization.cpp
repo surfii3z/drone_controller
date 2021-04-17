@@ -81,7 +81,7 @@ public:
         ekf_pose_sub = nh.subscribe("/tf", 1, &path_visualizer::cb_tf_pose, this);
 
         orb_path_pub = nh.advertise<nav_msgs::Path>("/slam_path", 1);
-        orb_pose_sub = nh.subscribe("/openvslam/camera_pose", 1, &path_visualizer::cb_orb_pose, this);
+        orb_pose_sub = nh.subscribe("/orb_slam/pose_with_cov", 1, &path_visualizer::cb_orb_pose, this);
     }
     
 };
