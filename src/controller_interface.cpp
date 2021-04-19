@@ -1,9 +1,14 @@
+/* NOTE: /openvslam/camera_pose coordinate is NWU: N is +x, W is +y, and U is +z
+ *       /tello/cmd_vel coordinate         is ENU: E is +x, N is +y, and U is +z
+ */
+
 #include <ros/ros.h>
 #include <math.h>
 
 #include <std_msgs/Float64.h>
 #include <geometry_msgs/Pose2D.h>
-#include <geometry_msgs/PoseStamped.h>
+// #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/Twist.h>
 
 #include <tf2_msgs/TFMessage.h>
@@ -84,22 +89,40 @@ bool set_ref_pose(drone_controller::SetRefPose::Request  &req,
     return true;
 }
 
-void stateCallback(const geometry_msgs::PoseStamped& current_pose_read)
+// void stateCallback(const geometry_msgs::PoseWithCovarianceStamped& current_pose_read)
+// {
+//     /*
+//         read current drone pose w.r.t. world frame
+//     */
+//     time_stamp = current_pose_read.header.stamp;
+
+//     x_cur_w = current_pose_read.pose.pose.position.x;
+//     y_cur_w = current_pose_read.pose.pose.position.y;
+//     alt_cur_w = current_pose_read.pose.pose.position.z;
+//     // alt_cur_w = current_pose_read.pose.position.y;
+
+//     qx_cur_w = current_pose_read.pose.pose.orientation.x;
+//     qy_cur_w = current_pose_read.pose.pose.orientation.y;
+//     qz_cur_w = current_pose_read.pose.pose.orientation.z;
+//     qw_cur_w = current_pose_read.pose.pose.orientation.w;
+// }
+
+void stateTFCallback(const tf2_msgs::TFMessage msg)
 {
     /*
         read current drone pose w.r.t. world frame
     */
-    time_stamp = current_pose_read.header.stamp;
+    time_stamp = msg.transforms[0].header.stamp;
 
-    x_cur_w = current_pose_read.pose.position.x;
-    y_cur_w = current_pose_read.pose.position.y;
-    alt_cur_w = current_pose_read.pose.position.z;
+    x_cur_w = msg.transforms[0].transform.translation.x;
+    y_cur_w = msg.transforms[0].transform.translation.y;
+    alt_cur_w = msg.transforms[0].transform.translation.z;
     // alt_cur_w = current_pose_read.pose.position.y;
 
-    qx_cur_w = current_pose_read.pose.orientation.x;
-    qy_cur_w = current_pose_read.pose.orientation.y;
-    qz_cur_w = current_pose_read.pose.orientation.z;
-    qw_cur_w = current_pose_read.pose.orientation.w;
+    qx_cur_w = msg.transforms[0].transform.rotation.x;
+    qy_cur_w = msg.transforms[0].transform.rotation.y;
+    qz_cur_w = msg.transforms[0].transform.rotation.z;
+    qw_cur_w = msg.transforms[0].transform.rotation.w;
 }
 
 int main(int argc, char **argv)
@@ -136,7 +159,9 @@ int main(int argc, char **argv)
     ros::Publisher zero_setpoint_pub = ctrl_interface_node.advertise<std_msgs::Float64>("/pid_zero_setpoint", 1);
 
     // Subscribe to position reference
-    ros::Subscriber state_w_sub = ctrl_interface_node.subscribe("/mocap_node/Robot_4/pose", 1, stateCallback);
+    // ros::Subscriber state_w_sub = ctrl_interface_node.subscribe("/openvslam/camera_pose", 1, stateCallback);
+    ros::Subscriber state_w_sub = ctrl_interface_node.subscribe("/tf", 1, stateTFCallback);
+    // ros::Subscriber state_w_sub = ctrl_interface_node.subscribe("/vrpn_client_node/Tello_jed/pose", 1, stateCallback);
 
     // Advertise service to update position reference
     ros::ServiceServer set_ref_pose_srv = ctrl_interface_node.advertiseService("/set_ref_pose", set_ref_pose);
@@ -162,12 +187,22 @@ int main(int argc, char **argv)
         ROS_INFO("(x, y, z, yaw): %.03lf %.03lf %.03lf %.03lf", x_cur_w, y_cur_w, alt_cur_w, yaw_cur_w);
         yaw_cur_w = get_yaw_from_quadternion(qx_cur_w, qy_cur_w, qz_cur_w, qw_cur_w);
 
+        /* openvslam pose coordinate is NWU
+         * if the err_x_b is plus (target point is front) => pitch is plus 
+         *                                                => drone moves forward
+         * if the err_y_b is plus (target point is left)  => roll is plus  
+         *                                                => drone moves right
+         *                                                => therefore the sign should be the opposite
+         */
 
         err_x_ref_w = x_ref_w - x_cur_w;
         err_y_ref_w = y_ref_w - y_cur_w;
 
-        err_x_b_msg.data = err_x_ref_w * cos(yaw_cur_w) + err_y_ref_w * sin(yaw_cur_w); // check sign
+        err_x_b_msg.data =  err_x_ref_w * cos(yaw_cur_w) + err_y_ref_w * sin(yaw_cur_w); // check sign
         err_y_b_msg.data = -err_x_ref_w * sin(yaw_cur_w) + err_y_ref_w * cos(yaw_cur_w); // check sign
+        err_y_b_msg.data = err_y_b_msg.data * -1;
+
+
         err_alt_b_msg.data = alt_ref_w - alt_cur_w; 
         err_yaw_b_msg.data = yaw_ref_w - yaw_cur_w;
 
@@ -183,6 +218,7 @@ int main(int argc, char **argv)
 
         err_x_b_pub.publish(err_x_b_msg);       // the PID controller outputs body velocity command
         err_y_b_pub.publish(err_y_b_msg);       // the PID controller outputs body velocity command
+
         err_alt_b_pub.publish(err_alt_b_msg);   // the PID controller outputs body velocity command
         err_yaw_b_pub.publish(err_yaw_b_msg);   // the PID controller outputs body angular velocity command
 

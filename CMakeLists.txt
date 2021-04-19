@@ -12,7 +12,6 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   message_generation
-  darknet_ros_msgs
   tello_driver
 )
 
@@ -74,7 +73,6 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
-  darknet_ros_msgs
 )
 
 ################################################
@@ -150,9 +148,9 @@ add_executable(controller_interface src/controller_interface.cpp)
 target_link_libraries(controller_interface ${catkin_LIBRARIES})
 add_dependencies(controller_interface drone_controller_generate_messages_cpp)
 
-add_executable(vision_based_controller_interface src/vision_based_controller_interface.cpp)
-target_link_libraries(vision_based_controller_interface ${catkin_LIBRARIES})
-add_dependencies(vision_based_controller_interface drone_controller_generate_messages_cpp)
+add_executable(path_visualization src/path_visualization.cpp)
+target_link_libraries(path_visualization ${catkin_LIBRARIES})
+add_dependencies(path_visualization drone_controller_generate_messages_cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -183,6 +181,9 @@ catkin_install_python(PROGRAMS
   scripts/vision_based_mission.py
   scripts/controller.py
   scripts/waypoint_mission.py
+  scripts/waypoint_interpolation.py
+  scripts/demo.py
+  scripts/auto_racer_orb.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

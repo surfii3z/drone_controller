@@ -1,0 +1,20 @@
+<launch>
+    <!-- controller -->
+    <include file="$(find drone_controller)/launch/waypoint_controller.launch" />
+    <include file="$(find drone_controller)/launch/rviz.launch" />
+
+    <!-- connect to joy -->
+    <include file="$(find tello_driver)/launch/joy_teleop.launch" />
+    
+
+    <!-- demo mission node -->
+    <!-- <node name="auto_racer_orb" pkg="drone_controller" type="auto_racer_orb.py" output="screen"> -->
+        <!-- <remap from="/err_x_img"   to="/pid_ximg/state"/>
+        <remap from="/err_y_img"   to="/pid_yimg/state"/> -->
+    <!-- </node> -->
+
+    <node name="path_visualizer" pkg="drone_controller" type="path_visualization" />
+
+    <!-- <node name="waypoint_mission_node" pkg="drone_controller" type="auto_racer_orb.py" output="screen"/> -->
+ 
+</launch>
