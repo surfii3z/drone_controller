@@ -9,7 +9,7 @@ robot_localization
 `https://github.com/surfii3z/robot_localization/tree/moma`
 
 drone controller
-`https://github.com/surfii3z/drone_controller/tree/moma`
+`https://github.com/surfii3z/drone_controller`
 
 image_undistort
 `https://github.com/surfii3z/image_undistort/tree/moma`
