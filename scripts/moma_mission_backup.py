@@ -21,7 +21,6 @@ from drone_controller.srv import SetRefPose, MoveDroneW
 
 ROS_RATE = 30   # Hz
 EFK_TWIST_SCALE = 0.5
-SCALE = 10
 
 def shutdown_handler():
     rospy.loginfo("Shut down")
@@ -127,9 +126,9 @@ class AutoRacer():
         wp = PoseStamped(Header(stamp=rospy.Time.now(), frame_id=self.frame_id),
                          Pose(position=Point(x, y, z), 
                               orientation=Quaternion(*q_temp)))
-        wp.pose.position.x = x * SCALE
-        wp.pose.position.y = y * SCALE
-        wp.pose.position.z = z * SCALE if not self.is_2d_mode else 0 
+        wp.pose.position.x = x
+        wp.pose.position.y = y
+        wp.pose.position.z = z if not self.is_2d_mode else 0 
         self.wps.append(wp)
     
 
@@ -151,7 +150,7 @@ class AutoRacer():
             self.pub_ctrl_cmd_to_ekf.publish(self.pos_ctrl_cmd_ekf)
             self.pub_wps_path.publish(self.wps_path)
 
-            if (self.is_next_target_wp_reached(th=0.7)):
+            if (self.is_next_target_wp_reached(th=0.70)):
                 if self.is_mission_finished():
                     rospy.loginfo("Mission ONE finished")
                     self.pub_ctrl_cmd.publish(self.zero_control_command)    # STOP
@@ -213,63 +212,27 @@ class AutoRacer():
         
 
         # start
+        # self.add_wp( -1.60, 0.80, 0.40, deg_to_rad(0))
         
-        self.add_wp( 0.16, 0.06, 0.07, deg_to_rad(0)) 
-        self.add_wp( 0.37, 0.09, 0.09, deg_to_rad(-10))
+        # front of first boxes
+        self.add_wp( -0.80, 0.60, 0.80, deg_to_rad(0)) 
+        self.add_wp( -0.24, -1.00, 1.20, deg_to_rad(0))
 
-        # near fan
-        self.add_wp( 0.65, 0.18, 0.12, deg_to_rad(-30))  
-        self.add_wp( 0.76,  0.02, 0.14, deg_to_rad(-50))
+        #front left of second boxes
+        self.add_wp( 1.05, -0.10, 1.00, deg_to_rad(0))  
+        self.add_wp( 2.12,  0.95, 0.80, deg_to_rad(0))
 
-        self.add_wp( 1.01,  -0.3, 0.17, deg_to_rad(-90))
+        # end of the way
+        self.add_wp( 3.28,  0.60, 0.80, deg_to_rad(0))
 
-        self.add_wp( 1.11,  -0.522, 0.18, deg_to_rad(-120))
+        # behind second boxes
+        self.add_wp( 3.00, -0.80, 1.50, deg_to_rad(0))
+        self.add_wp( 2.40, -0.80, 2.50, deg_to_rad(0))
 
-        self.add_wp( 1.02,  -0.62 , 0.18, deg_to_rad(-180))
+        self.add_wp( 0.88, 0.70,  1.50, deg_to_rad(0))
 
-        self.add_wp( 0.80,  -0.62 , 0.18, deg_to_rad(-180))
-
-        self.add_wp( 0.30,  -0.50 , 0.18, deg_to_rad(-250))
-
-        self.add_wp( 0.20,  -0.37 , 0.15, deg_to_rad(-270))
-
-        self.add_wp( 0.16, 0.06, 0.07, deg_to_rad(0)) 
-
-        # tunnel
-        # self.add_wp( 0.79,  -0.10, 0.14, deg_to_rad(-60))
-
-        # self.add_wp( 0.73,  -0.16, 0.14, deg_to_rad(-80))
-
-        # self.add_wp( 0.65,  -0.22, 0.14, deg_to_rad(-100))
-
-        # self.add_wp( 0.55,  -0.22, 0.14, deg_to_rad(-120))
-
-        # self.add_wp( 0.40,  -0.25, 0.14, deg_to_rad(-130))
-
-
-        # self.add_wp( 0.23,  -0.35, 0.14, deg_to_rad(-140))
-
-        # self.add_wp( 0.14,  -0.26, 0.14, deg_to_rad(-150))
-
-        # self.add_wp( 0.14,  -0.28, 0.14, deg_to_rad(0))
-
-
-
-
-
-
-
-
-
-
-        # # behind second boxes
-        # self.add_wp( 3.00, -0.80, 1.50, deg_to_rad(0))
-        # self.add_wp( 2.40, -0.80, 2.50, deg_to_rad(0))
-
-        # self.add_wp( 0.88, 0.70,  1.50, deg_to_rad(0))
-
-        # # end of the mission
-        # self.add_wp( -1.18, -0.46,  1.00, deg_to_rad(0))
+        # end of the mission
+        self.add_wp( -1.18, -0.46,  1.00, deg_to_rad(0))
 
         self.wps_path = path_generator(self.wps, 0.05)
         self.wps = self.wps_path.poses
