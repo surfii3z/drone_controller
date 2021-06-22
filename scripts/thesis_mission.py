@@ -13,14 +13,14 @@ from geometry_msgs.msg import Twist, PoseStamped, Pose, Point, Quaternion
 from nav_msgs.msg import Path
 from tf2_msgs.msg import TFMessage
 
-from tello_driver.msg import TelloStatus
-from tello_driver.srv import MoveUp, MoveDown
+from quadrotor_msgs.msg import PositionCommand
 
 # SERVICES
-from drone_controller.srv import SetRefPose, MoveDroneW
+from drone_controller.srv import SetRefPose
 
-ROS_RATE = 30   # Hz
+ROS_RATE = 10   # Hz
 EFK_TWIST_SCALE = 0.5
+SCALE = 1
 
 def shutdown_handler():
     rospy.loginfo("Shut down")
@@ -50,11 +50,13 @@ def get_rpy(wp):
 
 class AutoRacer():
     def __init__(self):
-        rospy.init_node("waypoint_mission", anonymous=True)
+        rospy.init_node("thesis_mission", anonymous=True)
         self.rate = rospy.Rate(ROS_RATE)
         self.idx_wp = 0
         self.frame_id = "odom"
+        # self.is_2d_mode = True
         self.is_2d_mode = False
+
         
         self.home_wp = PoseStamped(header=Header(stamp=rospy.Time.now(), 
                                                  frame_id=self.frame_id
@@ -86,92 +88,60 @@ class AutoRacer():
         self.update_target_call = rospy.ServiceProxy('/set_ref_pose', SetRefPose)
 
         # SUBSCRIBER
-        self.sub_ekf_pose = rospy.Subscriber('/tf', TFMessage, self.cb_ekf_pose)
-        # self.sub_orb_pose = rospy.Subscriber('/orb_slam/pose')
         self.sub_pos_ux = rospy.Subscriber('/pid_roll/control_effort', Float64, self.cb_pos_ux)
         self.sub_pos_uy = rospy.Subscriber('/pid_pitch/control_effort', Float64, self.cb_pos_uy)
         self.sub_pos_uz = rospy.Subscriber('/pid_thrust/control_effort', Float64, self.cb_pos_uz)
         self.sub_pos_uyaw = rospy.Subscriber('/pid_yaw/control_effort', Float64, self.cb_pos_uyaw)
 
+        rospy.wait_for_message('/planning/pos_cmd', PositionCommand)
+        self.sub_pos_cmd = rospy.Subscriber('/planning/pos_cmd', PositionCommand, self.cb_pos_cmd)
+
         rospy.sleep(1)
 
 
     # CALLBACK FUNCTIONS
-    def cb_ekf_pose(self, msg):
-        self.current_pose.header = msg.transforms[0].header
-        self.current_pose.pose.position.x = msg.transforms[0].transform.translation.x
-        self.current_pose.pose.position.y = msg.transforms[0].transform.translation.y
-        self.current_pose.pose.position.z = msg.transforms[0].transform.translation.z
-        self.current_pose.pose.orientation = msg.transforms[0].transform.rotation
-
     def cb_pos_ux(self, msg):
         self.pos_ctrl_cmd.linear.x = msg.data
-        self.pos_ctrl_cmd_ekf.linear.x = msg.data * EFK_TWIST_SCALE
 
     def cb_pos_uy(self, msg):
         self.pos_ctrl_cmd.linear.y = msg.data
-        self.pos_ctrl_cmd_ekf.linear.y = msg.data * EFK_TWIST_SCALE
 
     def cb_pos_uz(self, msg):
         self.pos_ctrl_cmd.linear.z = msg.data
-        self.pos_ctrl_cmd_ekf.linear.z = msg.data * EFK_TWIST_SCALE
 
     def cb_pos_uyaw(self, msg):
         self.pos_ctrl_cmd.angular.z = msg.data
-        self.pos_ctrl_cmd_ekf.angular.z = msg.data * EFK_TWIST_SCALE
+    
+    def cb_pos_cmd(self, msg):
+        q_temp = tf.transformations.quaternion_from_euler(0, 0, 0).tolist()
+        wp = PoseStamped(Header(stamp=rospy.Time.now(), frame_id=self.frame_id),
+                         Pose(position=Point(0, 0, 0), 
+                              orientation=Quaternion(*q_temp)))
+
+        wp.pose.position.x = msg.position.x * SCALE
+        wp.pose.position.y = msg.position.y * SCALE
+        wp.pose.position.z = msg.position.z * SCALE if not self.is_2d_mode else 0 
+        rospy.loginfo("POS_CMD: {} {} {}".format(wp.pose.position.x, wp.pose.position.y, wp.pose.position.z))
+
+        self.wps = wp
+
         
     # HELPER FUNCTIONS
-    def add_wp(self, x, y, z, yaw):
-        q_temp = tf.transformations.quaternion_from_euler(0, 0, yaw).tolist()
-        wp = PoseStamped(Header(stamp=rospy.Time.now(), frame_id=self.frame_id),
-                         Pose(position=Point(x, y, z), 
-                              orientation=Quaternion(*q_temp)))
-        wp.pose.position.x = x
-        wp.pose.position.y = y
-        wp.pose.position.z = z if not self.is_2d_mode else 0 
-        self.wps.append(wp)
-    
 
-    def run_mission_one(self):
+    def run_mission(self):
         '''
             MISSION ONE: following the waypoint using the pre-built map and EKF
             From Start to in front of the tunnel
             Just follow the waypoint using PD control
         '''
-        rospy.loginfo("M1: Prepare to start")
-        self.mission()
 
         rospy.sleep(1)
         rospy.loginfo("M1: Started")
-        self.set_waypoint(self.wps[self.idx_wp])
-        
+
         while not rospy.is_shutdown():
             self.pub_ctrl_cmd.publish(self.pos_ctrl_cmd)
-            self.pub_ctrl_cmd_to_ekf.publish(self.pos_ctrl_cmd_ekf)
-            self.pub_wps_path.publish(self.wps_path)
-
-            if (self.is_next_target_wp_reached(th=0.70)):
-                if self.is_mission_finished():
-                    rospy.loginfo("Mission ONE finished")
-                    self.pub_ctrl_cmd.publish(self.zero_control_command)    # STOP
-                    return
-                self.update_idx_wp()
-                self.set_waypoint(self.wps[self.idx_wp])
+            self.set_waypoint(self.wps)
             self.rate.sleep()
-
-    def update_idx_wp(self):
-        self.idx_wp = self.idx_wp + 1
-        rospy.loginfo("Update next waypoint index to %d" % self.idx_wp)
-
-    def is_next_target_wp_reached(self, th=0.30):
-        return self._L2_2Ddistance_from(self.wps[self.idx_wp]) < th
-    
-    def is_home_reached(self, th=0.30):
-        return self._L2_2Ddistance_from(self.home_wp) < th
-    
-    def is_mission_finished(self):
-        # index start from zero
-        return self.idx_wp == len(self.wps) - 1
 
     def take_off(self):
         rospy.loginfo("Taking Off")
@@ -202,43 +172,6 @@ class AutoRacer():
             return res
         except rospy.ServiceException as e:
             rospy.logerr("Service call failed: %s"%e)
-    
-    def mission(self):
-        '''
-            Set the waypoint for Mission ONE, from start to in front of the tunnel
-            # NWU coordinate
-        '''
-        self.idx_wp = 0
-        
-
-        # start
-        # self.add_wp( -1.60, 0.80, 0.40, deg_to_rad(0))
-        
-        # front of first boxes
-        self.add_wp( -0.80, 0.60, 0.80, deg_to_rad(0)) 
-        self.add_wp( -0.24, -1.00, 1.20, deg_to_rad(0))
-
-        #front left of second boxes
-        self.add_wp( 1.05, -0.10, 1.00, deg_to_rad(0))  
-        self.add_wp( 2.12,  0.95, 0.80, deg_to_rad(0))
-
-        # end of the way
-        self.add_wp( 3.28,  0.60, 0.80, deg_to_rad(0))
-
-        # behind second boxes
-        self.add_wp( 3.00, -0.80, 1.50, deg_to_rad(0))
-        self.add_wp( 2.40, -0.80, 2.50, deg_to_rad(0))
-
-        self.add_wp( 0.88, 0.70,  1.50, deg_to_rad(0))
-
-        # end of the mission
-        self.add_wp( -1.18, -0.46,  1.00, deg_to_rad(0))
-
-        self.wps_path = path_generator(self.wps, 0.05)
-        self.wps = self.wps_path.poses
-        rospy.loginfo("M1: Finish interpolating the waypoints")
-
-        
 
     def run(self):
         '''
@@ -246,15 +179,10 @@ class AutoRacer():
 
         '''
         
-        self.run_mission_one()
+        self.run_mission()
         self.land()
 
     # INTERNAL_FUNCTION
-    
-    def _L2_2Ddistance_from(self, target_wp):
-        assert (isinstance(target_wp, PoseStamped)), "target_wp must be a PoseStamped"
-        return math.sqrt((self.current_pose.pose.position.x - target_wp.pose.position.x) ** 2 + \
-                         (self.current_pose.pose.position.y - target_wp.pose.position.y) ** 2)
     
     def _set_ctrl_cmd_zeros(self, ctrl_cmd):
         '''

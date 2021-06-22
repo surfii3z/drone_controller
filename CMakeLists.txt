@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   message_generation
   tello_driver
+  quadrotor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -177,13 +178,10 @@ add_dependencies(path_visualization drone_controller_generate_messages_cpp)
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
-  scripts/waypoint_mission_orb_slam2.py
-  scripts/vision_based_mission.py
   scripts/controller.py
+  scripts/thesis_mission.py
   scripts/waypoint_mission.py
   scripts/waypoint_interpolation.py
-  scripts/demo.py
-  scripts/auto_racer_orb.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

@@ -58,7 +58,7 @@ int main(int argc, char **argv)
     // ros::Subscriber ref_pos_w_sub = pos_ctrl_node.subscribe("ref_pos_w", 1, refPosCallback);
     ros::Subscriber cur_pos_w_sub = pos_ctrl_node.subscribe("cur_pos_w", 1, curPosCallback);
 
-    double hz = 100.0;
+    double hz = 10.0;
 
     int loop_counter = 0;
     ros::Rate loop_rate(hz);  // Control rate in Hz
@@ -68,7 +68,6 @@ int main(int argc, char **argv)
 
     while (ros::ok())
     {
-        // ROS_INFO("REF: %lf, %lf", x_ref, y_ref);
         ros::spinOnce();
 
         err_x_w = x_ref - x_cur;
@@ -81,6 +80,7 @@ int main(int argc, char **argv)
         err_y_b_pub.publish(err_y_b);
 
         zero_setpoint_pub.publish(zero_setpoint);
+        ROS_INFO("REF: %lf, %lf", err_x_b.data, err_y_b.data);
 
         loop_rate.sleep();
     }
