@@ -13,6 +13,7 @@ from geometry_msgs.msg import Twist, PoseStamped, Pose, Point, Quaternion
 from nav_msgs.msg import Path
 from tf2_msgs.msg import TFMessage
 
+# from quadrotor_msgs package in Fast-planner
 from quadrotor_msgs.msg import PositionCommand
 
 # SERVICES

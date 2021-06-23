@@ -13,7 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   message_generation
   # tello_driver
-  quadrotor_msgs
+  # quadrotor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
