@@ -9,6 +9,9 @@ The waypoint tracking (PD) controller and mission (Python) scripts to navigate D
 
 ## Installation
 ```bash
+# PID controller package
+sudo apt install ros-melodic-pid
+
 # assume pwd is /path/to/catkin_ws/src
 git clone -b thesis https://github.com/surfii3z/drone_controller.git
 ```
