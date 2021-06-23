@@ -3,8 +3,6 @@
     <include file="$(find drone_controller)/launch/waypoint_controller.launch" />
     <include file="$(find drone_controller)/launch/rviz.launch" />
 
-    <!-- connect to joy -->
-    <include file="$(find tello_driver)/launch/joy_teleop.launch" />
     
 
     <!-- demo mission node -->

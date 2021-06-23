@@ -12,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   message_generation
-  tello_driver
+  # tello_driver
   quadrotor_msgs
 )
 
