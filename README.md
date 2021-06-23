@@ -1,21 +1,22 @@
-# dobot_controller
+## General information
+The waypoint tracking (PD) controller and mission (Python) scripts to navigate DJI tello following the waypoints.
 
-# Dependency
+## Dependency
 
-tello_driver
-`https://github.com/surfii3z/tello_driver/tree/thesis`
-
-robot_localization
-`https://github.com/surfii3z/robot_localization/tree/thesis`
-
-drone controller
-`https://github.com/surfii3z/drone_controller/tree/thesis`
-
-image_undistort
-`https://github.com/surfii3z/image_undistort/tree/thesis`
+- [tello_driver](https://github.com/surfii3z/tello_driver/tree/thesis)
+- [Fast-Planner](https://github.com/surfii3z/Fast-Planner/tree/tello_thesis)
 
 
-# Start the experiment
+## Installation
+```bash
+# assume pwd is /path/to/catkin_ws/src
+git clone -b thesis https://github.com/surfii3z/drone_controller.git
+```
+
+
+
+
+## Start the experiment
 ``` bash
 # connect to Tello using WIFI and ROS
 roslaunch tello_driver thesis_tello_node.launch
